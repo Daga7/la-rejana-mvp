@@ -24,7 +24,7 @@ test('el mesero abre una mesa, envía la ronda, la sirve en vivo y la caja cobra
   // 1. El mesero (en el celular) abre la mesa 4 y toma el pedido
   await ingresar(page, 'mesero.villaluz@larejana.test')
   await expect(page).toHaveURL(/\/mesero$/)
-  await page.getByRole('button', { name: /^Mesa 4 / }).click()
+  await page.getByRole('button', { name: /^Mesa 4\b/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /Abrir y tomar el pedido/ }).click()
   await page.waitForURL(/\/mesero\/cuenta\//)
   await page.getByRole('button', { name: /^La Callejera/ }).click()
@@ -72,5 +72,36 @@ test('el mesero abre una mesa, envía la ronda, la sirve en vivo y la caja cobra
 
   // 5. En el salón, la mesa vuelve a estar libre
   await page.goto('/mesero')
-  await expect(page.getByRole('button', { name: /^Mesa 4 .*Libre/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Mesa 4\b.*libre/i })).toBeVisible()
 })
+
+test('desde el plano, el mesero traslada una mesa y le junta otra para un grupo', async ({ page }) => {
+  await ingresar(page, 'mesero.villaluz@larejana.test')
+  await page.getByRole('tab', { name: 'Terraza' }).click()
+  await page.getByRole('button', { name: /^Mesa 7\b/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /Abrir y tomar el pedido/ }).click()
+  await page.waitForURL(/\/mesero\/cuenta\//)
+
+  await page.getByRole('button', { name: /Mover o juntar/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Trasladar a la mesa 9' }).click()
+  await expect(page.getByRole('heading', { name: 'Mesa 9' })).toBeVisible()
+
+  await page.getByRole('button', { name: /Mover o juntar/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Juntar la mesa 10\b/ }).click()
+  await expect(page.getByRole('heading', { name: 'Mesa 9 + 10' })).toBeVisible()
+  if (process.env.CAPTURAS) await page.screenshot({ path: 'test-results/capturas/14-mesas-juntas.png', fullPage: true })
+
+  await page.goto('/mesero')
+  await page.getByRole('tab', { name: 'Terraza' }).click()
+  await expect(page.getByRole('button', { name: /^Mesa 10\b.*junta con la mesa 9/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Mesa 7\b.*libre/ })).toBeVisible()
+
+  // Sin pedidos, el grupo se va y las dos mesas quedan libres
+  await page.getByRole('button', { name: /^Mesa 9\b/ }).click()
+  await page.getByRole('tab', { name: /^Cuenta/ }).click()
+  await page.getByRole('button', { name: 'Liberar la mesa' }).click()
+  await page.waitForURL(/\/mesero$/)
+  await page.getByRole('tab', { name: 'Terraza' }).click()
+  await expect(page.getByRole('button', { name: /^Mesa 10\b.*libre/ })).toBeVisible()
+})
+

@@ -12,8 +12,8 @@
 | 4. Pedidos a domicilio, estados y push | ✅ Hecha | `feat(pedidos): add delivery orders, push and live tracking` |
 | 5. Domiciliario: tiempo real y ruta óptima | ✅ Hecha | `feat(domicilios): add optimal routes and live courier tracking` |
 | 6. Cocina, caja y admin | ✅ Hecha | `feat(operacion): add kitchen, cashier and admin modules` |
-| 7. Buzón de quejas | ⏳ Siguiente | — |
-| 8. Asistente de WhatsApp con PDF | Pendiente | — |
+| 7. Buzón de quejas | ✅ Hecha | `feat(buzon): add anonymous staff feedback mailbox` |
+| 8. Asistente de WhatsApp con PDF | ⏳ Siguiente | — |
 | Cierre: seguridad, audit, Lighthouse, INFORME | Pendiente | — |
 
 ## Fase 1 — qué quedó
@@ -65,9 +65,15 @@
 - Web: `/cocina` (tres columnas en vivo, cambio de estado con un toque optimista, minutos con color, campana), `/caja` (pestañas por etapa con contadores, asignar domiciliario, despachar, entregar, cobrar con cambio, cerrar, cancelar con reposición opcional), `/admin` (tablero con KPIs, líneas por sede, barras de lo más vendido, resumen por sede y alertas), `/admin/inventario`, `/admin/menu` (precio y disponibilidad por sede, editor de recetas, productos y categorías), `/admin/sedes`, `/admin/empleados` (invitar, pendientes, editar) y `/admin/auditoria`. Componentes de gráficas en `componentes/graficas/`.
 - Pruebas: 9 de integración (reportes cuadran con la BD, filtros, permisos, empleados). **Total 104 en verde.** E2E: tablero + inventario (admin), cocina y caja en navegador.
 
+## Fase 7 — qué quedó
+
+- `application/buzon.ts` + rutas: enviar (cualquier empleado; anónimo sin autor/sede/hora, sin auditoría ni log), listar y cambiar estado (solo admin, auditado).
+- Web: `/buzon` (sugerencia/queja, anónimo por defecto con explicación) y `/admin/buzon` (filtros por estado, cambio de estado).
+- Pruebas: 5 de integración (incluye verificar columna por columna que un anónimo no guarda nada del autor y que el CHECK lo impide). **Total 109 en verde.** E2E del flujo en navegador.
+
 ## Siguiente paso exacto
 
-**Fase 7 — Buzón de quejas y sugerencias.** API `application/buzon.ts`: `enviar` (cualquier empleado; si es anónimo NO se guardan autor, sede ni hora —solo la fecha—, sin auditoría ni logs con identidad, y con límite de envíos en memoria), `listar` y `cambiarEstado` (solo admin, auditado). Rutas `POST /api/buzon`, `GET /api/admin/buzon`, `PATCH /api/admin/buzon/:id`. Pruebas que verifiquen en la BD que un mensaje anónimo no tiene ningún dato del autor. Web: `/buzon` (formulario con interruptor de anonimato y explicación clara) y `/admin/buzon` (lista con filtros por estado).
+**Fase 8 — Asistente de WhatsApp con PDF.** Leer la skill `claude-api` antes de escribir el adaptador de Anthropic. Crear puertos ya definidos en `ports/servicios.ts` (`MensajeriaWhatsApp`, `Transcriptor`, `InterpreteSolicitudes`, `GeneradorPdf`) con adaptadores: WhatsApp Cloud API real + consola (PDF a `apps/api/tmp/whatsapp`), transcripción OpenAI-compatible + mock, intérprete Anthropic (tool use con esquema estricto) + intérprete por reglas, PDF con `pdfkit` (logo, colores de marca, KPIs, gráfica de barras/líneas dibujada y tabla). Caso de uso `application/asistente.ts` (lista blanca por teléfono de admins con WhatsApp habilitado, idempotencia por `wamid`, audio → texto → solicitud del catálogo cerrado → reporte → PDF → envío; si no entiende, pide aclaración con ejemplos). Webhook `GET/POST /api/webhooks/whatsapp` con verificación de firma `X-Hub-Signature-256` sobre el cuerpo crudo y respuesta 200 inmediata. Página `/admin/asistente` para probar con texto y descargar el PDF. Pruebas: firma inválida → 401, número no autorizado → ignorado, reintento del mismo `wamid` → no duplica, intérprete por reglas, PDF válido.
 
 ## Cómo verificar lo hecho
 

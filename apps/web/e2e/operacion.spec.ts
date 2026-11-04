@@ -7,6 +7,7 @@ async function ingresar(page: Page, correo: string) {
   await page.getByLabel('Correo').fill(correo)
   await page.getByLabel('Contraseña', { exact: true }).fill('Rejana2026*')
   await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/ingresar'))
 }
 
 test.describe('módulos del personal', () => {

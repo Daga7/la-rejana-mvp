@@ -87,3 +87,10 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D49 | El admin opera cocina y caja de cualquier sede (selector recordado en el dispositivo); el resto del personal, solo la suya. | Cubre el caso real del dueño que supervisa ambas sedes. |
 | D50 | Al cambiar rol, sede o estado de un empleado se **cierran sus sesiones** al instante; siempre queda un admin activo; nadie se desactiva a sí mismo; el asistente de WhatsApp solo se habilita a admins con celular. | Los permisos nuevos aplican de inmediato y no hay forma de quedarse sin administrador. |
 | D51 | La cocina usa actualización **optimista** (la tarjeta se mueve al tocar y vuelve si la API falla) y campana generada con Web Audio, que el navegador solo permite tras un toque («Activar sonido»). | Respuesta inmediata en la tablet de cocina sin archivos de audio. |
+
+## Buzón (fase 7)
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D52 | Mensaje anónimo = sin autor, sin sede y **sin hora** (solo la fecha); id aleatorio (UUID v4) y listado ordenado por fecha, no por orden de llegada; no se audita el envío, el endpoint no deja ni la línea de acceso en los logs y el límite de envíos vive solo en memoria. Un `CHECK` en la BD impide guardar un anónimo con autor. | «No guardes en la base de datos nada que identifique al autor»: en un equipo pequeño, la sede o la hora bastarían para adivinar quién fue. |
+| D53 | El formulario arranca en **anónimo** y explica qué se guarda en cada caso. | Que sea la opción segura por defecto y que la persona decida informada. |

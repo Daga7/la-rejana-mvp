@@ -4,6 +4,7 @@ import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
 import { crearCasosAdmin } from './application/admin'
 import { crearCasosAuth } from './application/auth'
+import { crearCasosBuzon } from './application/buzon'
 import { crearCasosReportes } from './application/reportes'
 import { crearCasosDomicilios, type CasosDomicilios } from './application/domicilios'
 import { crearCasosInventario } from './application/inventario'
@@ -71,6 +72,7 @@ export interface Casos {
   domicilios: CasosDomicilios
   reportes: ReturnType<typeof crearCasosReportes>
   admin: ReturnType<typeof crearCasosAdmin>
+  buzon: ReturnType<typeof crearCasosBuzon>
 }
 
 export interface Sobrescrituras {
@@ -160,6 +162,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     domicilios,
     reportes: crearCasosReportes({ uow, reloj }),
     admin: crearCasosAdmin({ uow, reloj }),
+    buzon: crearCasosBuzon({ uow, reloj }),
   }
 
   return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }

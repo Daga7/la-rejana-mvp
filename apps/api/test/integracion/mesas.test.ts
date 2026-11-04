@@ -122,6 +122,11 @@ describe('mesero: abrir mesa, rondas a la cocina y servir', () => {
     const mal = await caja.post(`/api/cuentas/${cuenta.id}/cobrar`, { pagos: [{ metodo: 'efectivo', monto: 50000 }], propina: 10000 })
     expect(mal.statusCode).toBe(422)
 
+    // La propina es 0 o exactamente el 10 % del consumo (no un valor cualquiera)
+    const propinaLibre = await caja.post(`/api/cuentas/${cuenta.id}/cobrar`, { pagos: [{ metodo: 'efectivo', monto: 106000 }], propina: 5000 })
+    expect(propinaLibre.statusCode).toBe(422)
+    expect(propinaLibre.json().error.mensaje).toMatch(/10 %/)
+
     // Cuenta dividida: QR + efectivo con cambio, y propina voluntaria del 10 %
     const cobro = await caja.post(`/api/cuentas/${cuenta.id}/cobrar`, {
       pagos: [

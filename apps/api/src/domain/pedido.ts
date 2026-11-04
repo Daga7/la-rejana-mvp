@@ -1,4 +1,4 @@
-import type { CanalPedido, EstadoMesa, EstadoPedido, MetodoPago } from '@rejana/shared'
+import { propinaSugerida, type CanalPedido, type EstadoMesa, type EstadoPedido, type MetodoPago } from '@rejana/shared'
 import { ErrorDominio } from './errores'
 import { permisoTransicion, tienePermiso, type Actor } from './permisos'
 
@@ -101,12 +101,16 @@ export interface PagoMesa {
 }
 
 /**
- * Valida el cobro de una mesa: los pagos deben sumar exactamente el subtotal más la propina, y el
- * efectivo recibido debe cubrir su monto. Devuelve cada pago con el cambio calculado.
+ * Valida el cobro de una mesa: la propina es 0 o el 10 % del consumo, los pagos deben sumar exactamente
+ * el consumo más la propina y el efectivo recibido debe cubrir su monto. Devuelve cada pago con su cambio.
  */
 export function validarCobroMesa(pagos: PagoMesa[], subtotal: number, propina: number) {
   if (subtotal <= 0) throw new ErrorDominio('VALIDACION', 'La cuenta está en cero: no hay nada que cobrar')
-  if (propina > subtotal) throw new ErrorDominio('VALIDACION', 'La propina no puede ser mayor que el consumo', { campo: 'propina' })
+  // La propina es voluntaria y, si la mesa la acepta, es exactamente el 10 % del consumo (redondeado a la centena).
+  const sugerida = propinaSugerida(subtotal)
+  if (propina !== 0 && propina !== sugerida) {
+    throw new ErrorDominio('VALIDACION', `La propina es voluntaria: 0 o el 10 % del consumo (${sugerida})`, { campo: 'propina', sugerida })
+  }
   const total = subtotal + propina
   const suma = pagos.reduce((s, p) => s + p.monto, 0)
   if (suma !== total) {

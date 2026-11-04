@@ -6,6 +6,8 @@ import {
   minutosDesde,
   NOMBRE_ESTADO_MESA,
   NOMBRE_METODO_PAGO,
+  PORCENTAJE_PROPINA,
+  propinaSugerida,
   telefonoLegible,
   type CuentaMesaDTO,
   type MetodoPago,
@@ -378,13 +380,12 @@ const aPesos = (texto: string) => Number(texto.replace(/\D/g, '')) || 0
 const lineaVacia = (metodo: MetodoPago = 'efectivo'): LineaPago => ({ metodo, monto: '', recibido: '', referencia: '' })
 
 /**
- * Cobro de una mesa: revisa que no quede nada sin servir, ofrece la propina voluntaria (sugerida 10 %,
- * siempre preguntando a la mesa) y permite dividir la cuenta en varios pagos.
+ * Cobro de una mesa: revisa que no quede nada sin servir, ofrece la propina voluntaria (el 10 % del
+ * consumo, siempre preguntando a la mesa: se acepta completa o no se cobra) y permite dividir la cuenta.
  */
 function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => void }) {
   const { data, mutate } = useSWR<{ cuenta: CuentaMesaDTO }>(`/cuentas/${cuentaId}`, obtener)
   const [conPropina, setConPropina] = useState(false)
-  const [propinaTexto, setPropinaTexto] = useState('')
   const [pagos, setPagos] = useState<LineaPago[]>([lineaVacia()])
   const [enviando, setEnviando] = useState(false)
   const c = data?.cuenta
@@ -392,8 +393,8 @@ function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => voi
   const cuenta = c
 
   const sinServir = cuenta.rondas.filter((r) => r.estado === 'recibido' || r.estado === 'en_preparacion' || r.estado === 'listo')
-  const sugerida = Math.round((cuenta.subtotal * 0.1) / 100) * 100
-  const propina = conPropina ? aPesos(propinaTexto) : 0
+  const sugerida = propinaSugerida(cuenta.subtotal)
+  const propina = conPropina ? sugerida : 0
   const total = cuenta.subtotal + propina
   // Con un solo pago y sin monto escrito, se cobra el total.
   const montos = pagos.map((p) => (pagos.length === 1 && !p.monto ? total : aPesos(p.monto)))
@@ -479,26 +480,12 @@ function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => voi
       )}
 
       <label className="flex items-start gap-3 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-5 w-5 accent-rosa"
-          checked={conPropina}
-          onChange={(e) => {
-            setConPropina(e.target.checked)
-            if (e.target.checked && !propinaTexto) setPropinaTexto(String(sugerida))
-          }}
-        />
+        <input type="checkbox" className="mt-0.5 h-5 w-5 accent-rosa" checked={conPropina} onChange={(e) => setConPropina(e.target.checked)} />
         <span>
-          La mesa quiere dejar propina
-          <span className="block text-xs text-tinta-soft">Es voluntaria: pregúntale a la mesa. Sugerida 10 %: {cop(sugerida)}.</span>
+          La mesa acepta la propina del {PORCENTAJE_PROPINA} %: {cop(sugerida)}
+          <span className="block text-xs text-tinta-soft">Es voluntaria: pregúntale a la mesa. Es el {PORCENTAJE_PROPINA} % del consumo, redondeado a la centena.</span>
         </span>
       </label>
-      {conPropina && (
-        <label className="grid gap-1">
-          <span className="etiqueta">Propina</span>
-          <input className="campo" inputMode="numeric" value={propinaTexto} onChange={(e) => setPropinaTexto(e.target.value)} />
-        </label>
-      )}
 
       <div className="grid gap-3">
         {pagos.map((p, i) => (

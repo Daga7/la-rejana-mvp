@@ -1,3 +1,4 @@
+import { propinaSugerida } from '@rejana/shared'
 import { describe, expect, it } from 'vitest'
 import { estadoDeMesa, rondasSinServir, subtotalCuenta, validarCobroMesa, validarTransicion } from '../../src/domain/pedido'
 import { permisoTransicion, transicionesPosibles, type Actor } from '../../src/domain/permisos'
@@ -55,6 +56,16 @@ describe('cuenta de la mesa', () => {
     expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 65000 }], 65000, 6500)).toThrow(/suman/)
     expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 65000, recibido: 60000 }], 65000, 0)).toThrow(/no alcanza/)
     expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 1 }], 0, 0)).toThrow(/cero/)
-    expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 140000 }], 65000, 75000)).toThrow(/propina/)
+    // La propina es 0 o exactamente el 10 %: ni más ni menos
+    expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 70000 }], 65000, 5000)).toThrow(/10 %/)
+    expect(() => validarCobroMesa([{ metodo: 'efectivo', monto: 140000 }], 65000, 75000)).toThrow(/10 %/)
+  })
+
+  it('la propina del 10 % se redondea a la centena más cercana', () => {
+    expect(propinaSugerida(101000)).toBe(10100)
+    expect(propinaSugerida(45940)).toBe(4600)
+    expect(propinaSugerida(45440)).toBe(4500)
+    expect(propinaSugerida(45500)).toBe(4600) // mitad exacta: sube
+    expect(propinaSugerida(0)).toBe(0)
   })
 })

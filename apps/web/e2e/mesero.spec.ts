@@ -63,7 +63,7 @@ test('el mesero abre una mesa, envía la ronda, la sirve en vivo y la caja cobra
   await pc.getByRole('button', { name: /^4 Mesa 4/ }).click()
   const hoja = pc.getByRole('dialog')
   await expect(hoja).toContainText('Consumo')
-  await hoja.getByLabel(/quiere dejar propina/).check()
+  await hoja.getByLabel(/acepta la propina/).check()
   await hoja.getByRole('button', { name: /Dividir la cuenta/ }).click()
   await hoja.getByRole('button', { name: 'Partes iguales' }).click()
   if (process.env.CAPTURAS) await pc.screenshot({ path: 'test-results/capturas/13-caja-cobro-mesa.png', fullPage: true })

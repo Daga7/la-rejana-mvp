@@ -2,7 +2,7 @@ import path from 'node:path'
 import type { NextConfig } from 'next'
 
 // Raíz del monorepo. En local, `scripts/next-con-env.mjs` carga el .env de la raíz antes de arrancar Next
-// (así lo heredan todos sus procesos); en Railway/Vercel las variables vienen del entorno.
+// (así lo heredan todos sus procesos); en Vercel las variables vienen del entorno.
 const raiz = path.resolve(process.cwd(), '../..')
 
 const cabecerasSeguridad = [
@@ -16,7 +16,7 @@ const cabecerasSeguridad = [
 ]
 
 // Identifica cada despliegue (versión del service worker).
-const SHA = process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.VERSION_APP
+const SHA = process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERSION_APP
 const VERSION_APP = SHA ? SHA.slice(0, 12) : `local-${Date.now().toString(36)}`
 
 const nextConfig: NextConfig = {

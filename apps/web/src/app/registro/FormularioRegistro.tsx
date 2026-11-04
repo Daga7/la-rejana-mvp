@@ -4,13 +4,14 @@ import { registroSchema } from '@rejana/shared'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { BotonesOAuth } from '@/componentes/BotonesOAuth'
+import { BotonesOAuth, hayOAuth } from '@/componentes/BotonesOAuth'
 import { AlertaError, BotonEnviar, Campo, CampoClave, erroresDeApi, erroresDeZod, FortalezaClave, MensajeCampo, type Errores } from '@/componentes/Formulario'
 import { Separador } from '@/componentes/PantallaAuth'
 import { api, ErrorApi } from '@/lib/api'
+import type { ProveedoresOAuth } from '@/lib/api-servidor'
 import { rutaInterna } from '@/lib/navegacion'
 
-export function FormularioRegistro() {
+export function FormularioRegistro({ proveedores }: { proveedores: ProveedoresOAuth }) {
   const router = useRouter()
   const volver = rutaInterna(useSearchParams().get('volver'))
   const [datos, setDatos] = useState({ nombre: '', correo: '', clave: '', aceptaPrivacidad: false })
@@ -68,15 +69,19 @@ export function FormularioRegistro() {
         </div>
         <BotonEnviar cargando={cargando}>Crear cuenta</BotonEnviar>
       </form>
-      <Separador />
-      <BotonesOAuth volver={volver ?? undefined} texto="Registrarme con" />
-      <p className="mt-3 text-center text-xs text-tinta-soft">
-        Al continuar con Google o Apple aceptas el{' '}
-        <Link prefetch={false} href="/privacidad" className="underline">
-          aviso de privacidad
-        </Link>
-        .
-      </p>
+      {hayOAuth(proveedores) && (
+        <>
+          <Separador />
+          <BotonesOAuth proveedores={proveedores} volver={volver ?? undefined} texto="Registrarme con" />
+          <p className="mt-3 text-center text-xs text-tinta-soft">
+            Al continuar con {proveedores.google && proveedores.apple ? 'Google o Apple' : proveedores.google ? 'Google' : 'Apple'} aceptas el{' '}
+            <Link prefetch={false} href="/privacidad" className="underline">
+              aviso de privacidad
+            </Link>
+            .
+          </p>
+        </>
+      )}
       <p className="mt-4 text-center text-sm">
         ¿Ya tienes cuenta?{' '}
         <Link prefetch={false} href="/ingresar" className="font-bold text-rosa-600 underline underline-offset-4">

@@ -4,14 +4,15 @@ import { ingresarSchema, type UsuarioDTO } from '@rejana/shared'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { BotonesOAuth } from '@/componentes/BotonesOAuth'
+import { BotonesOAuth, hayOAuth } from '@/componentes/BotonesOAuth'
 import { AlertaError, BotonEnviar, Campo, CampoClave, erroresDeApi, erroresDeZod, type Errores } from '@/componentes/Formulario'
 import { Separador } from '@/componentes/PantallaAuth'
 import { api, ErrorApi } from '@/lib/api'
+import type { ProveedoresOAuth } from '@/lib/api-servidor'
 import { destinoTrasIngreso, MENSAJES_ERROR_OAUTH, rutaInterna } from '@/lib/navegacion'
 import { useSesion } from '@/lib/sesion'
 
-export function FormularioIngreso() {
+export function FormularioIngreso({ proveedores }: { proveedores: ProveedoresOAuth }) {
   const router = useRouter()
   const params = useSearchParams()
   const volver = rutaInterna(params.get('volver'))
@@ -57,8 +58,12 @@ export function FormularioIngreso() {
         </div>
         <BotonEnviar cargando={cargando}>Entrar</BotonEnviar>
       </form>
-      <Separador />
-      <BotonesOAuth volver={volver ?? undefined} />
+      {hayOAuth(proveedores) && (
+        <>
+          <Separador />
+          <BotonesOAuth proveedores={proveedores} volver={volver ?? undefined} />
+        </>
+      )}
       <p className="mt-5 text-center text-sm">
         ¿No tienes cuenta?{' '}
         <Link prefetch={false} href={`/registro${volver ? `?volver=${encodeURIComponent(volver)}` : ''}`} className="font-bold text-rosa-600 underline underline-offset-4">

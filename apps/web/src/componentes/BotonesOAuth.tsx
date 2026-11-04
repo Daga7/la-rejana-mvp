@@ -1,5 +1,7 @@
 'use client'
 
+import type { ProveedoresOAuth } from '@/lib/api-servidor'
+
 function LogoGoogle() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
@@ -19,11 +21,13 @@ function LogoApple() {
   )
 }
 
+export const hayOAuth = (p: ProveedoresOAuth) => p.google || p.apple
+
 /**
  * Botones de Google y Apple. Son enlaces normales: el flujo OAuth arranca en la API (vía /api) con
- * state, nonce y PKCE, y vuelve con la sesión ya creada.
+ * state, nonce y PKCE, y vuelve con la sesión ya creada. Solo aparecen los proveedores configurados en la API.
  */
-export function BotonesOAuth({ volver, invitacion, texto = 'Continuar con' }: { volver?: string; invitacion?: string; texto?: string }) {
+export function BotonesOAuth({ proveedores, volver, invitacion, texto = 'Continuar con' }: { proveedores: ProveedoresOAuth; volver?: string; invitacion?: string; texto?: string }) {
   const q = (p: Record<string, string | undefined>) => {
     const s = new URLSearchParams()
     for (const [k, v] of Object.entries(p)) if (v) s.set(k, v)
@@ -34,12 +38,16 @@ export function BotonesOAuth({ volver, invitacion, texto = 'Continuar con' }: { 
   return (
     <div className="grid gap-3">
       {/* Navegación completa (no fetch): el proveedor necesita la página entera. */}
-      <a href={`/api/auth/oauth/google${params}`} className="btn btn-blanco btn-lg w-full">
-        <LogoGoogle /> {texto} Google
-      </a>
-      <a href={`/api/auth/oauth/apple${params}`} className="btn btn-lg w-full !bg-tinta !text-white">
-        <LogoApple /> {texto} Apple
-      </a>
+      {proveedores.google && (
+        <a href={`/api/auth/oauth/google${params}`} className="btn btn-blanco btn-lg w-full">
+          <LogoGoogle /> {texto} Google
+        </a>
+      )}
+      {proveedores.apple && (
+        <a href={`/api/auth/oauth/apple${params}`} className="btn btn-lg w-full !bg-tinta !text-white">
+          <LogoApple /> {texto} Apple
+        </a>
+      )}
     </div>
   )
 }

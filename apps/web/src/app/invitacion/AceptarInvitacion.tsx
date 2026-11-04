@@ -5,10 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { avisar } from '@/componentes/Avisos'
-import { BotonesOAuth } from '@/componentes/BotonesOAuth'
+import { BotonesOAuth, hayOAuth } from '@/componentes/BotonesOAuth'
 import { AlertaError, BotonEnviar, Campo, CampoClave, erroresDeApi, erroresDeZod, FortalezaClave, MensajeCampo, type Errores } from '@/componentes/Formulario'
 import { Separador } from '@/componentes/PantallaAuth'
 import { api, ErrorApi } from '@/lib/api'
+import type { ProveedoresOAuth } from '@/lib/api-servidor'
 import { useSesion } from '@/lib/sesion'
 
 interface Invitacion {
@@ -18,7 +19,7 @@ interface Invitacion {
   expiraEn: string
 }
 
-export function AceptarInvitacion() {
+export function AceptarInvitacion({ proveedores }: { proveedores: ProveedoresOAuth }) {
   const router = useRouter()
   const { establecer } = useSesion()
   const [token, setToken] = useState<string | null>(null)
@@ -124,8 +125,12 @@ export function AceptarInvitacion() {
         </div>
         <BotonEnviar cargando={cargando}>Crear mi acceso</BotonEnviar>
       </form>
-      <Separador texto="o entra con este mismo correo" />
-      {token && <BotonesOAuth invitacion={token} />}
+      {token && hayOAuth(proveedores) && (
+        <>
+          <Separador texto="o entra con este mismo correo" />
+          <BotonesOAuth proveedores={proveedores} invitacion={token} />
+        </>
+      )}
     </>
   )
 }

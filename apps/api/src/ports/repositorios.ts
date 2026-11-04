@@ -468,6 +468,7 @@ export interface RepoPedidos {
   ): Promise<void>
   registrarEvento(datos: { pedidoId: string; estado: EstadoPedido; actorId: string | null; actorRol: string | null; nota?: string | null }): Promise<void>
   registrarPago(datos: Omit<PagoRegistro, 'id' | 'creadoEn'> & { pedidoId: string; registradoPor: string }): Promise<void>
+  rotarTokenSeguimiento(id: string, tokenHash: string): Promise<void>
 }
 
 export interface Recorrido {

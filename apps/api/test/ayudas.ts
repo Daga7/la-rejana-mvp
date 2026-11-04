@@ -46,6 +46,7 @@ export function envPrueba(extra: Partial<Record<string, string>> = {}): Env {
     VAPID_PUBLIC_KEY: '',
     VAPID_PRIVATE_KEY: '',
     LOG_LEVEL: 'silent',
+    PERMITIR_PEDIDOS_FUERA_DE_HORARIO: 'true',
     ...extra,
   })
 }

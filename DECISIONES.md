@@ -52,3 +52,17 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D29 | Con Google/Apple, la cuenta nueva acepta el aviso de privacidad por **conducta inequívoca** (texto visible junto al botón; Decreto 1377 de 2013, art. 7) y se vincula por correo verificado del proveedor. | Flujo de un toque sin saltarse la autorización de la Ley 1581. |
 | D30 | No se puede invitar como empleado un correo que ya tiene cuenta (de cliente u otra). | Simplicidad del MVP; el admin puede usar otro correo o cambiar el rol de un empleado existente. |
 | D31 | Proveedor OAuth **simulado** (pantalla propia) solo con `OAUTH_MOCK=true` y nunca en producción (la API no arranca si se intenta). | Probar el flujo completo (state, nonce, callback, invitaciones) sin credenciales. |
+
+## Pedidos, push y tiempo real (fase 4)
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D32 | El inventario se descuenta **al crear el pedido** (estado «recibido»), dentro de una transacción que bloquea las filas de los insumos (`SELECT … FOR UPDATE` en orden) y con un `CHECK cantidad >= 0` como última barrera. | Es el momento de «confirmar» del encargo y garantiza que dos pedidos simultáneos no vendan el mismo insumo (probado con 4 pedidos concurrentes). |
+| D33 | Al cancelar: si la comida no se alcanzó a preparar (recibido/en preparación) los insumos vuelven; si ya estaba lista o en camino, por defecto **no** vuelven (se consumieron), salvo que la caja marque «reponer». El cliente solo cancela mientras está «recibido». | Refleja lo que pasa en la cocina sin falsear el inventario. |
+| D34 | Precios, disponibilidad, cobertura (radio por sede) y horario se validan **siempre en el servidor**; el carrito solo envía ids y cantidades. Pedidos fuera de horario se rechazan (en desarrollo se permiten con `PERMITIR_PEDIDOS_FUERA_DE_HORARIO`). | El cliente no puede manipular precios ni pedir donde no se entrega. |
+| D35 | **Idempotencia** del checkout con `Idempotency-Key` (UUID generado y guardado en el carrito): si la red falla y el cliente reintenta, recibe el mismo pedido. A un invitado se le emite un token de seguimiento nuevo en el reintento. | Conexiones inestables sin pedidos duplicados ni dobles descuentos. |
+| D36 | Los invitados consultan su pedido con un **token de seguimiento** (32 bytes, guardado solo como HMAC) que vive en el dispositivo; sin token la API responde «no existe». | Seguimiento sin cuenta y sin exponer pedidos ajenos por id. |
+| D37 | Web Push solo hacia **servicios push conocidos** (FCM, Mozilla, Apple, Windows). | La API hace un POST a la URL de la suscripción: sin lista blanca sería un vector de SSRF. |
+| D38 | «Pagado» y «cerrado» son independientes del estado de entrega: la caja registra pagos (efectivo con cambio o QR con referencia) y cierra el pedido entregado y pagado. | El flujo de caja no se mezcla con la logística. |
+| D39 | La web local carga el `.env` raíz con un lanzador propio (`scripts/next-con-env.mjs`) en lugar de `--env-file`. | Next propaga las banderas de Node a sus workers (no permitido en `NODE_OPTIONS`) y el `NODE_ENV` del `.env` rompía el build. |
+| D40 | Pruebas e2e con **Playwright** usando el Chromium del sistema (`CHROMIUM_PATH`), sin descargar navegadores. | Verificar los flujos reales en un navegador (incluido el tiempo real) sin dependencias pesadas. |

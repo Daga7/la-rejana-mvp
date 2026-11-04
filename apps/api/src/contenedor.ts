@@ -5,6 +5,8 @@ import type { Env } from './config/env'
 import { crearCasosAuth } from './application/auth'
 import { crearCasosInventario } from './application/inventario'
 import { crearCasosMenu } from './application/menu'
+import { crearCasosPedidos } from './application/pedidos'
+import { crearCasosPush } from './application/push'
 import { proveedorApple, proveedorGoogle, proveedorSimulado } from './adapters/oauth/proveedores'
 import { conectarBD, type ConexionBD } from './adapters/db/cliente'
 import { unidadDeTrabajoPostgres } from './adapters/db/repos'
@@ -61,6 +63,8 @@ export interface Casos {
   auth: ReturnType<typeof crearCasosAuth>
   menu: ReturnType<typeof crearCasosMenu>
   inventario: ReturnType<typeof crearCasosInventario>
+  pedidos: ReturnType<typeof crearCasosPedidos>
+  push: ReturnType<typeof crearCasosPush>
 }
 
 export interface Sobrescrituras {
@@ -125,10 +129,14 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
   const tokens = emisorTokensJose(env.JWT_SECRET)
   const eventos = new PublicadorSocketIo()
 
+  const inventario = crearCasosInventario({ uow, reloj, eventos, log })
+  const pedidos = crearCasosPedidos({ uow, reloj, cripto, eventos, push, log, inventario, permitirFueraDeHorario: env.PERMITIR_PEDIDOS_FUERA_DE_HORARIO })
   const casos: Casos = {
     auth: crearCasosAuth({ uow, reloj, cripto, hasher, filtradas, tokens, correo, log, webOrigin: env.WEB_ORIGIN, proveedores }),
     menu: crearCasosMenu({ uow, reloj, eventos }),
-    inventario: crearCasosInventario({ uow, reloj, eventos, log }),
+    inventario,
+    pedidos,
+    push: crearCasosPush({ uow, push, tokens, pedidos }),
   }
 
   return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }

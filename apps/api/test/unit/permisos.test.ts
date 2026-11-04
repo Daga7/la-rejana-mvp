@@ -62,3 +62,27 @@ describe('máquina de estados del pedido', () => {
     expect(() => validarTransicion(actor('domiciliario'), 'recibido', 'en_preparacion')).toThrow()
   })
 })
+
+import { estaAbierta, dentroDeCobertura } from '../../src/domain/sede'
+
+describe('reglas de sede', () => {
+  // 2026-11-04 15:00 en Bogotá = 20:00 UTC
+  const tarde = new Date('2026-11-04T20:00:00Z')
+  const madrugada = new Date('2026-11-04T08:00:00Z') // 3:00 a. m. en Bogotá
+
+  it('abre y cierra según la hora de Bogotá', () => {
+    expect(estaAbierta({ horaApertura: '12:00', horaCierre: '22:30' }, tarde)).toBe(true)
+    expect(estaAbierta({ horaApertura: '12:00', horaCierre: '22:30' }, madrugada)).toBe(false)
+  })
+
+  it('soporta horarios que pasan la medianoche', () => {
+    expect(estaAbierta({ horaApertura: '18:00', horaCierre: '03:30' }, madrugada)).toBe(true)
+    expect(estaAbierta({ horaApertura: '18:00', horaCierre: '03:30' }, tarde)).toBe(false)
+  })
+
+  it('cobertura por radio en km', () => {
+    const sede = { lat: 4.68862, lng: -74.10945, radioEntregaKm: 5 }
+    expect(dentroDeCobertura(sede, { lat: 4.7, lng: -74.1 })).toBe(true)
+    expect(dentroDeCobertura(sede, { lat: 4.6, lng: -74.05 })).toBe(false)
+  })
+})

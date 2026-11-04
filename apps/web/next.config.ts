@@ -1,10 +1,9 @@
 import path from 'node:path'
-import { loadEnvConfig } from '@next/env'
 import type { NextConfig } from 'next'
 
-// En desarrollo las variables viven en el .env de la raíz del monorepo.
+// Raíz del monorepo. En local, los scripts cargan el .env de la raíz con `node --env-file-if-exists`
+// (así lo heredan todos los procesos de Next); en Railway/Vercel las variables vienen del entorno.
 const raiz = path.resolve(process.cwd(), '../..')
-loadEnvConfig(raiz)
 
 const cabecerasSeguridad = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },

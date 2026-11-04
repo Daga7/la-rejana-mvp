@@ -151,6 +151,8 @@ export const cambiarEstadoSchema = z.object({
 
 export const cancelarPedidoSchema = z.object({
   motivo: z.string().trim().min(3, 'Cuéntanos el motivo').max(200),
+  /** Solo personal: si los insumos vuelven al inventario (por defecto, sí cuando la comida no se alcanzó a preparar). */
+  reponerInventario: z.boolean().optional(),
 })
 
 export const asignarDomiciliarioSchema = z.object({ domiciliarioId: id })

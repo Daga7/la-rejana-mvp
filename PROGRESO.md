@@ -9,8 +9,8 @@
 | 1. Base, hexagonal, BD, PWA, despliegue | ✅ Hecha | `chore: scaffold monorepo with api, web pwa and db` |
 | 2. Autenticación completa | ✅ Hecha | `feat(auth): add registration, sessions, oauth and invitations` |
 | 3. Menú, recetas e inventario | ✅ Hecha | `feat(menu): add per-branch menu, recipes and inventory` |
-| 4. Pedidos a domicilio, estados y push | ⏳ Siguiente | — |
-| 5. Domiciliario: tiempo real y ruta óptima | Pendiente | — |
+| 4. Pedidos a domicilio, estados y push | ✅ Hecha | `feat(pedidos): add delivery orders, push and live tracking` |
+| 5. Domiciliario: tiempo real y ruta óptima | ⏳ Siguiente | — |
 | 6. Cocina, caja y admin | Pendiente | — |
 | 7. Buzón de quejas | Pendiente | — |
 | 8. Asistente de WhatsApp con PDF | Pendiente | — |
@@ -44,14 +44,23 @@
 - Pruebas: 14 nuevas de menú/inventario/permisos (total 67 en verde).
 - Las pantallas de administración de catálogo e inventario se hacen en la fase 6 (la API ya está lista).
 
+## Fase 4 — qué quedó
+
+- `application/pedidos.ts`: crear (servidor fija precios, valida sede activa/abierta, cobertura y disponibilidad, idempotencia, transacción con bloqueo de insumos y descuento por receta, token para invitados, dirección guardada), obtener (dueño, invitado con token, personal de la sede, domiciliario asignado; si no, 404), mis pedidos, pedidos del invitado en el dispositivo, tablero de operación por sede, cambiar estado (máquina de estados + rol + sede + «asignado a ti»), asignar domiciliario, cancelar (con reposición según estado), registrar pago (cambio) y cerrar. Push en cada cambio y eventos Socket.IO.
+- `application/push.ts`: suscripciones Web Push (lista blanca anti-SSRF), tickets de tiempo real con salas por pedido/sede/domiciliario/admin. Servidor Socket.IO autenticado por ticket (`adapters/realtime/servidor.ts`).
+- Rutas `adapters/http/rutas/pedidos.ts` (+ direcciones guardadas y geocodificación `/api/geo/*`).
+- Web: `/carrito` (sincroniza precios y agotados), `/checkout` (mapa Leaflet con pin y radio de cobertura, ubicación del dispositivo, buscador de direcciones, direcciones guardadas, efectivo con «paga con» o QR, autorización de datos para invitados, idempotencia), `/pedido/[id]` (pasos animados, ilustraciones por estado, tiempo real con respaldo por sondeo, mapa y ETA cuando va en camino, activar push, QR de pago, cancelar), `/mis-pedidos` (cuenta o dispositivo).
+- Pruebas: 17 de pedidos (descuento exacto por receta, reposición, concurrencia sin sobreventa, idempotencia, acceso por token, flujo cocina→caja→domiciliario con permisos de rol/sede, push, anti-SSRF, cobro y cierre) + 3 de tiempo real con Socket.IO real + 3 de reglas de sede. **Total 93 en verde.** E2E en navegador: compra como invitado de punta a punta con actualización en vivo.
+
 ## Siguiente paso exacto
 
-**Fase 4 — Pedidos a domicilio, estados y push.** Crear `apps/api/src/application/pedidos.ts`: `crear` (valida sede activa/abierta y cobertura, precios del servidor, idempotencia por `Idempotency-Key`, transacción que bloquea filas de inventario y descuenta por receta; invitado recibe token de seguimiento), `obtener` (dueño, invitado con `x-pedido-token` o personal de la sede), `cancelar` (cliente solo en «recibido»; personal con reposición según estado), `cambiarEstado` (máquina de estados + permisos de rol/sede), notificaciones push en cada cambio y eventos Socket.IO. Rutas `/api/pedidos*`, `/api/mis-pedidos`, `/api/push/*`, `/api/realtime/ticket` y el servidor Socket.IO. Pruebas de descuento/reposición, concurrencia sin sobreventa e idempotencia. En la web: `/carrito`, `/checkout` (mapa Leaflet con pin, datos mínimos del invitado, efectivo/QR), `/pedido/[id]` (estados animados + push) y `/mis-pedidos`.
+**Fase 5 — Domiciliario.** Crear `application/domicilios.ts`: pedidos asignados al domiciliario, `planificarRuta` (matriz de tiempos con el puerto de mapas + `domain/ruta.ts`, límite por sede, enlaces Google Maps/Waze), `iniciarRecorrido` (crea recorrido, pasa los pedidos a «en camino», push), `actualizarUbicacion` (solo con recorrido activo; calcula ETA por parada y emite `pedido:ubicacion` solo a las salas de los pedidos en camino), `finalizarRecorrido` (borra la ubicación). Manejador Socket.IO para `ubicacion` + ruta REST de respaldo. Pantalla `/domiciliario` (lista, planificador con sugerencia de dividir salidas, iniciar recorrido con `watchPosition`, marcar entregado, abrir en Maps/Waze). Pruebas de privacidad de la ubicación.
 
 ## Cómo verificar lo hecho
 
 ```bash
 pnpm db:up && pnpm db:reset
-pnpm --filter @rejana/api test     # 29 pruebas
+pnpm --filter @rejana/api test     # pruebas unitarias + integración
+CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e   # con la app corriendo (pnpm dev)
 pnpm dev                           # http://localhost:3000 y http://localhost:4000/api/salud
 ```

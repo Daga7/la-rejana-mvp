@@ -31,6 +31,8 @@ const esquema = z
     COOKIE_SECURE: booleano,
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
     HIBP_HABILITADO: booleano,
+    /** Solo para pruebas y demos: acepta pedidos aunque la sede esté cerrada. */
+    PERMITIR_PEDIDOS_FUERA_DE_HORARIO: booleano,
 
     EMAIL_PROVEEDOR: z.enum(['consola', 'smtp', 'resend']).default('consola'),
     EMAIL_REMITENTE: z.string().default('La Rejana Callejera <no-responder@larejana.co>'),

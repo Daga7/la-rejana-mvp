@@ -18,3 +18,7 @@ apps/api/tmp/
 .DS_Store
 .vercel
 .lighthouseci/
+
+# Resultados de Playwright
+test-results/
+playwright-report/

@@ -6,7 +6,10 @@ import { crearLogger } from './adapters/http/logger'
 import { crearServidor } from './adapters/http/servidor'
 import { rutasAuth } from './adapters/http/rutas/auth'
 import { rutasMenu } from './adapters/http/rutas/menu'
+import { rutasPedidos } from './adapters/http/rutas/pedidos'
 import { rutasSalud } from './adapters/http/rutas/salud'
+import { crearServidorTiempoReal } from './adapters/realtime/servidor'
+import { origenesPermitidos } from './config/env'
 
 export interface AppLista {
   app: FastifyInstance
@@ -27,6 +30,10 @@ export async function crearApp(
   rutasSalud(app, c)
   rutasAuth(app, c)
   rutasMenu(app, c)
+  rutasPedidos(app, c)
+
+  const io = crearServidorTiempoReal(app, { origenes: origenesPermitidos(env), tokens: c.tokens, log, manejadores: [] })
+  c.eventos.conectar(io)
 
   await app.ready()
   return {

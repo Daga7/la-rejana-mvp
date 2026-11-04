@@ -137,6 +137,9 @@ export function repoPedidos(db: Ejecutor): RepoPedidos {
     async registrarPago(datos) {
       await db.insert(pagos).values(datos)
     },
+    async rotarTokenSeguimiento(id, tokenHash) {
+      await db.update(pedidos).set({ tokenSeguimientoHash: tokenHash }).where(eq(pedidos.id, id))
+    },
   }
 }
 

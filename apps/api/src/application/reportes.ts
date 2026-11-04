@@ -17,6 +17,8 @@ export interface ReporteVentas {
   ticketPromedio: number
   porDia: { dia: string; ventas: number; pedidos: number }[]
   porSede: { sedeId: string; sedeNombre: string; ventas: number; pedidos: number }[]
+  /** Serie diaria por sede, alineada con `porDia`. */
+  seriesPorSede: { sedeId: string; sedeNombre: string; valores: number[] }[]
 }
 
 export interface ReporteProductos {
@@ -61,13 +63,20 @@ export function crearCasosReportes(d: { uow: UnidadDeTrabajo; reloj: Reloj }) {
       }
       const ventas = filas.reduce((s, f) => s + f.ventas, 0)
       const pedidos = filas.reduce((s, f) => s + f.pedidos, 0)
+      const dias = diasEntre(rango.diaDesde, rango.diaHasta)
+      const sedesDelReporte = sedes.filter((s) => !sedeId || s.id === sedeId)
       return {
         rango,
         sedeNombre,
         ventas,
         pedidos,
         ticketPromedio: pedidos ? Math.round(ventas / pedidos) : 0,
-        porDia: diasEntre(rango.diaDesde, rango.diaHasta).map((dia) => ({ dia, ...(porDiaMapa.get(dia) ?? { ventas: 0, pedidos: 0 }) })),
+        porDia: dias.map((dia) => ({ dia, ...(porDiaMapa.get(dia) ?? { ventas: 0, pedidos: 0 }) })),
+        seriesPorSede: sedesDelReporte.map((s) => ({
+          sedeId: s.id,
+          sedeNombre: s.nombre,
+          valores: dias.map((dia) => filas.filter((f) => f.dia === dia && f.sedeId === s.id).reduce((a, f) => a + f.ventas, 0)),
+        })),
         porSede: sedes
           .filter((s) => !sedeId || s.id === sedeId)
           .map((s) => ({ sedeId: s.id, sedeNombre: s.nombre, ...(porSedeMapa.get(s.id) ?? { ventas: 0, pedidos: 0 }) }))

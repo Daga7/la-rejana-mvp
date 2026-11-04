@@ -13,8 +13,8 @@
 | 5. Domiciliario: tiempo real y ruta óptima | ✅ Hecha | `feat(domicilios): add optimal routes and live courier tracking` |
 | 6. Cocina, caja y admin | ✅ Hecha | `feat(operacion): add kitchen, cashier and admin modules` |
 | 7. Buzón de quejas | ✅ Hecha | `feat(buzon): add anonymous staff feedback mailbox` |
-| 8. Asistente de WhatsApp con PDF | ⏳ Siguiente | — |
-| Cierre: seguridad, audit, Lighthouse, INFORME | Pendiente | — |
+| 8. Asistente de WhatsApp con PDF | ✅ Hecha | `feat(asistente): add whatsapp report assistant with pdf` |
+| Cierre: seguridad, audit, Lighthouse, INFORME | ⏳ Siguiente | — |
 
 ## Fase 1 — qué quedó
 
@@ -71,9 +71,17 @@
 - Web: `/buzon` (sugerencia/queja, anónimo por defecto con explicación) y `/admin/buzon` (filtros por estado, cambio de estado).
 - Pruebas: 5 de integración (incluye verificar columna por columna que un anónimo no guarda nada del autor y que el CHECK lo impide). **Total 109 en verde.** E2E del flujo en navegador.
 
+## Fase 8 — qué quedó
+
+- Adaptadores: WhatsApp Cloud API (`adapters/whatsapp/whatsapp.ts`) + consola, transcripción compatible con OpenAI + simulada, intérprete con Claude (`adapters/ia/interprete-anthropic.ts`, salidas estructuradas) + por reglas, PDF con pdfkit y fuentes de marca (`adapters/pdf/generador-pdfkit.ts`).
+- `application/asistente.ts`: lista blanca, idempotencia, límite por hora, nota de voz → texto → solicitud del catálogo → reporte → PDF → respuesta con resumen; aclaración con ejemplos si no entiende. Reportes: ventas (serie por sede), productos más vendidos e inventario frente al mínimo.
+- Rutas `adapters/http/rutas/asistente.ts`: webhook GET/POST con firma, prueba desde el admin, estado de la integración y descarga directa de PDF.
+- Web: `/admin/asistente` (probador, estado, descargas).
+- Pruebas: 7 unitarias del intérprete + 11 de integración (firma, lista blanca, idempotencia, voz, aclaración, permisos, PDF válido). **Total 127 en verde.** E2E del probador con descarga del PDF.
+
 ## Siguiente paso exacto
 
-**Fase 8 — Asistente de WhatsApp con PDF.** Leer la skill `claude-api` antes de escribir el adaptador de Anthropic. Crear puertos ya definidos en `ports/servicios.ts` (`MensajeriaWhatsApp`, `Transcriptor`, `InterpreteSolicitudes`, `GeneradorPdf`) con adaptadores: WhatsApp Cloud API real + consola (PDF a `apps/api/tmp/whatsapp`), transcripción OpenAI-compatible + mock, intérprete Anthropic (tool use con esquema estricto) + intérprete por reglas, PDF con `pdfkit` (logo, colores de marca, KPIs, gráfica de barras/líneas dibujada y tabla). Caso de uso `application/asistente.ts` (lista blanca por teléfono de admins con WhatsApp habilitado, idempotencia por `wamid`, audio → texto → solicitud del catálogo cerrado → reporte → PDF → envío; si no entiende, pide aclaración con ejemplos). Webhook `GET/POST /api/webhooks/whatsapp` con verificación de firma `X-Hub-Signature-256` sobre el cuerpo crudo y respuesta 200 inmediata. Página `/admin/asistente` para probar con texto y descargar el PDF. Pruebas: firma inválida → 401, número no autorizado → ignorado, reintento del mismo `wamid` → no duplica, intérprete por reglas, PDF válido.
+**Cierre.** 1) Revisión de seguridad con la lista de OWASP ASVS L2 / Top 10 sobre el código. 2) `pnpm audit --prod` sin altas/críticas. 3) Lighthouse móvil sobre el build de producción (`pnpm --filter @rejana/web build && start`) y corregir lo que baje de 90. 4) Reconstruir las imágenes Docker. 5) Escribir `INFORME.md` y actualizar `README.md`, `PENDIENTES.md` y este archivo.
 
 ## Cómo verificar lo hecho
 

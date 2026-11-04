@@ -5,7 +5,10 @@ import { cargarEnv, type Env } from '../src/config/env'
 import { crearContenedor, type Contenedor } from '../src/contenedor'
 import { sembrar } from '../src/adapters/db/seed'
 import { hasherBcrypt } from '../src/adapters/seguridad/hasher-bcrypt'
+import { verificarFirmaMeta } from '../src/adapters/whatsapp/whatsapp'
 import type { MensajeCorreo, Notificador, NotificacionPush } from '../src/ports/servicios'
+
+export const SECRETO_WHATSAPP = 'secreto-app-whatsapp-pruebas'
 
 export const ORIGEN_WEB = 'http://localhost:3000'
 export const CLAVE = 'Rejana2026*'
@@ -14,6 +17,7 @@ export interface Entorno {
   app: FastifyInstance
   c: Contenedor
   correos: MensajeCorreo[]
+  whatsapp: { para: string; texto?: string; pdf?: Buffer; nombre?: string }[]
   pushes: { endpoint: string; n: NotificacionPush }[]
   reloj: { t: number; avanzar(ms: number): void }
   cerrar(): Promise<void>
@@ -55,6 +59,7 @@ export function envPrueba(extra: Partial<Record<string, string>> = {}): Env {
 export async function levantar(opciones: { sembrar?: boolean; env?: Partial<Record<string, string>> } = {}): Promise<Entorno> {
   const correos: MensajeCorreo[] = []
   const pushes: Entorno['pushes'] = []
+  const whatsapp: Entorno['whatsapp'] = []
   const reloj = {
     t: Date.now(),
     avanzar(ms: number) {
@@ -77,11 +82,25 @@ export async function levantar(opciones: { sembrar?: boolean; env?: Partial<Reco
       hasher: hasherBcrypt(4), // solo pruebas: el costo real (12) se usa en la app
       filtradas: { estaFiltrada: async (clave) => clave === 'Filtrada.2026!' },
       push,
+      whatsapp: {
+        async enviarTexto(para, texto) {
+          whatsapp.push({ para, texto })
+        },
+        async enviarDocumento(para, pdf, nombre, leyenda) {
+          whatsapp.push({ para, pdf, nombre, texto: leyenda })
+        },
+        async descargarMedia(id) {
+          if (id === 'audio-roto') throw new Error('no se pudo descargar')
+          return { datos: Buffer.from('audio falso'), mime: 'audio/ogg; codecs=opus' }
+        },
+        firmaValida: (cuerpo, firma) => verificarFirmaMeta(SECRETO_WHATSAPP, cuerpo, firma),
+      },
+      stt: { transcribir: async () => '¿Cuánto inventario de pan hay en la sede de Villaluz?' },
     },
   })
   await limpiar(c)
   if (opciones.sembrar !== false) await sembrar(c.conexion.db, { pimienta: env.TOKENS_PEPPER, historicoDias: 2, silencioso: true })
-  return { app, c, correos, pushes, reloj, cerrar }
+  return { app, c, correos, whatsapp, pushes, reloj, cerrar }
 }
 
 export async function limpiar(c: Contenedor) {

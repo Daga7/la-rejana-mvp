@@ -71,7 +71,7 @@ const esquema = z
 
     IA_PROVEEDOR: z.enum(['reglas', 'anthropic']).default('reglas'),
     ANTHROPIC_API_KEY: opcional,
-    ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5'),
+    ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
     STT_PROVEEDOR: z.enum(['mock', 'openai']).default('mock'),
     STT_API_KEY: opcional,
     STT_BASE_URL: z.string().default('https://api.openai.com/v1'),

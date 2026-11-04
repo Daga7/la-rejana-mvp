@@ -149,11 +149,18 @@ export interface Transcriptor {
   transcribir(audio: Buffer, mime: string): Promise<string>
 }
 
+export interface ContextoInterpretacion {
+  /** Fecha de hoy en Bogotá (AAAA-MM-DD). */
+  hoy: string
+  sedes: string[]
+  insumos: string[]
+}
+
 export type ResultadoInterpretacion = { tipo: 'reporte'; solicitud: SolicitudReporte } | { tipo: 'aclaracion'; mensaje: string }
 
 /** Convierte lenguaje natural en una solicitud del catálogo cerrado de reportes (nunca SQL). */
 export interface InterpreteSolicitudes {
-  interpretar(texto: string, contexto: { hoy: string; sedes: string[] }): Promise<ResultadoInterpretacion>
+  interpretar(texto: string, contexto: ContextoInterpretacion): Promise<ResultadoInterpretacion>
 }
 
 // --- Documentos ---------------------------------------------------------------------------

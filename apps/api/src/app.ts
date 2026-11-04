@@ -5,6 +5,7 @@ import type { Logger } from './ports/servicios'
 import { crearLogger } from './adapters/http/logger'
 import { crearServidor } from './adapters/http/servidor'
 import { rutasAdmin } from './adapters/http/rutas/admin'
+import { rutasAsistente } from './adapters/http/rutas/asistente'
 import { rutasAuth } from './adapters/http/rutas/auth'
 import { rutasBuzon } from './adapters/http/rutas/buzon'
 import { rutasMenu } from './adapters/http/rutas/menu'
@@ -37,6 +38,7 @@ export async function crearApp(
   rutasDomicilios(app, c)
   rutasAdmin(app, c)
   rutasBuzon(app, c)
+  rutasAsistente(app, c)
 
   const io = crearServidorTiempoReal(app, { origenes: origenesPermitidos(env), tokens: c.tokens, log, manejadores: [manejadorUbicacion(c)] })
   c.eventos.conectar(io)

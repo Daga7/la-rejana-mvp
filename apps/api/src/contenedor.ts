@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from 'jose'
 import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
 import { crearCasosAdmin } from './application/admin'
+import { crearCasosAsistente } from './application/asistente'
 import { crearCasosAuth } from './application/auth'
 import { crearCasosBuzon } from './application/buzon'
 import { crearCasosReportes } from './application/reportes'
@@ -12,6 +13,11 @@ import { crearCasosMenu } from './application/menu'
 import { crearCasosPedidos } from './application/pedidos'
 import { crearCasosPush } from './application/push'
 import { proveedorApple, proveedorGoogle, proveedorSimulado } from './adapters/oauth/proveedores'
+import { interpreteAnthropic } from './adapters/ia/interprete-anthropic'
+import { interpretePorReglas } from './adapters/ia/interprete-reglas'
+import { generadorPdfkit } from './adapters/pdf/generador-pdfkit'
+import { transcriptorOpenAICompatible, transcriptorSimulado } from './adapters/transcripcion/transcriptor'
+import { whatsappConsola, whatsappMeta } from './adapters/whatsapp/whatsapp'
 import { conectarBD, type ConexionBD } from './adapters/db/cliente'
 import { unidadDeTrabajoPostgres } from './adapters/db/repos'
 import { correoConsola, correoResend, correoSmtp } from './adapters/correo/correo'
@@ -27,14 +33,18 @@ import type {
   Criptografia,
   EmisorTokens,
   Geocodificador,
+  GeneradorPdf,
   HasherClaves,
+  InterpreteSolicitudes,
   Logger,
   MatrizTiempos,
   Notificador,
   PerfilOAuth,
   ProveedorIdentidad,
+  MensajeriaWhatsApp,
   Reloj,
   ServicioCorreo,
+  Transcriptor,
   VerificadorClavesFiltradas,
 } from './ports/servicios'
 
@@ -60,6 +70,10 @@ export interface Contenedor {
   proveedores: Partial<Record<ProveedorOAuth, ProveedorIdentidad>>
   /** Solo con OAUTH_MOCK: firma el "código" del proveedor simulado. */
   firmarCodigoSimulado: ((p: PerfilOAuth & { nonce: string }) => Promise<string>) | null
+  whatsapp: MensajeriaWhatsApp
+  stt: Transcriptor
+  ia: InterpreteSolicitudes
+  pdf: GeneradorPdf
   casos: Casos
 }
 
@@ -73,9 +87,13 @@ export interface Casos {
   reportes: ReturnType<typeof crearCasosReportes>
   admin: ReturnType<typeof crearCasosAdmin>
   buzon: ReturnType<typeof crearCasosBuzon>
+  asistente: ReturnType<typeof crearCasosAsistente>
 }
 
 export interface Sobrescrituras {
+  whatsapp?: MensajeriaWhatsApp
+  stt?: Transcriptor
+  ia?: InterpreteSolicitudes
   reloj?: Reloj
   correo?: ServicioCorreo
   hasher?: HasherClaves
@@ -137,6 +155,16 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
   const tokens = emisorTokensJose(env.JWT_SECRET)
   const eventos = new PublicadorSocketIo()
 
+  // --- Asistente de WhatsApp: proveedores reales o de desarrollo según la configuración ------------
+  const whatsapp =
+    s.whatsapp ??
+    (env.WHATSAPP_PROVEEDOR === 'meta'
+      ? whatsappMeta({ token: env.WHATSAPP_TOKEN!, phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID!, appSecret: env.WHATSAPP_APP_SECRET!, version: env.WHATSAPP_GRAPH_VERSION }, log)
+      : whatsappConsola(env.WHATSAPP_APP_SECRET ?? cripto.tokenAleatorio(), log))
+  const stt = s.stt ?? (env.STT_PROVEEDOR === 'openai' ? transcriptorOpenAICompatible({ baseUrl: env.STT_BASE_URL, apiKey: env.STT_API_KEY!, modelo: env.STT_MODELO }) : transcriptorSimulado)
+  const ia = s.ia ?? (env.IA_PROVEEDOR === 'anthropic' ? interpreteAnthropic({ apiKey: env.ANTHROPIC_API_KEY!, modelo: env.ANTHROPIC_MODEL }, log) : interpretePorReglas)
+  const pdf = generadorPdfkit()
+
   const inventario = crearCasosInventario({ uow, reloj, eventos, log })
   // pedidos y domicilios se conocen mutuamente a través de funciones (sin importarse entre sí).
   let domicilios: CasosDomicilios | null = null
@@ -153,6 +181,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     alSalirDeRecorrido: (id) => domicilios?.pedidoCerrado(id),
   })
   domicilios = crearCasosDomicilios({ uow, reloj, mapas, eventos, log, pedidos: () => pedidos })
+  const reportes = crearCasosReportes({ uow, reloj })
   const casos: Casos = {
     auth: crearCasosAuth({ uow, reloj, cripto, hasher, filtradas, tokens, correo, log, webOrigin: env.WEB_ORIGIN, proveedores }),
     menu: crearCasosMenu({ uow, reloj, eventos }),
@@ -160,10 +189,11 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     pedidos,
     push: crearCasosPush({ uow, push, tokens, pedidos }),
     domicilios,
-    reportes: crearCasosReportes({ uow, reloj }),
+    reportes,
     admin: crearCasosAdmin({ uow, reloj }),
     buzon: crearCasosBuzon({ uow, reloj }),
+    asistente: crearCasosAsistente({ uow, reloj, log, whatsapp, stt, ia, pdf, reportes }),
   }
 
-  return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }
+  return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, whatsapp, stt, ia, pdf, casos }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { NOMBRE_ROL, type Rol, type SedePublicaDTO } from '@rejana/shared'
-import { ChefHat, LayoutDashboard, LogOut, MessageSquareHeart, Receipt, UserRound } from 'lucide-react'
+import { ChefHat, LayoutDashboard, LogOut, MessageSquareHeart, Receipt, UserRound, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import useSWR from 'swr'
@@ -58,6 +58,9 @@ function Barra({ titulo }: { titulo: string }) {
             </Link>
             <Link href="/caja" className={enlace('/caja', ruta.startsWith('/caja'))}>
               <Receipt size={16} aria-hidden /> <span className="hidden sm:inline">Caja</span>
+            </Link>
+            <Link href="/mesero" className={enlace('/mesero', ruta.startsWith('/mesero'))}>
+              <UtensilsCrossed size={16} aria-hidden /> <span className="hidden sm:inline">Mesas</span>
             </Link>
           </nav>
         )}

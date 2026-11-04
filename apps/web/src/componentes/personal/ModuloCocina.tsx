@@ -1,7 +1,7 @@
 'use client'
 
 import { hora, type EstadoPedido, type PedidoDTO } from '@rejana/shared'
-import { Bike, ChefHat, CircleCheckBig, Flame, Inbox } from 'lucide-react'
+import { Bike, ChefHat, CircleCheckBig, Flame, Inbox, UtensilsCrossed } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
@@ -13,7 +13,7 @@ import { BotonSonido, SelectorSede, sonarCampana, Transcurrido, useSedeOperacion
 const COLUMNAS: { estado: EstadoPedido; titulo: string; icono: typeof Inbox; accion?: { a: EstadoPedido; texto: string; clase: string } }[] = [
   { estado: 'recibido', titulo: 'Nuevos', icono: Inbox, accion: { a: 'en_preparacion', texto: 'Empezar', clase: 'btn-amarillo' } },
   { estado: 'en_preparacion', titulo: 'En la parrilla', icono: Flame, accion: { a: 'listo', texto: '¡Listo!', clase: 'btn-turquesa' } },
-  { estado: 'listo', titulo: 'Listos para salir', icono: CircleCheckBig },
+  { estado: 'listo', titulo: 'Listos', icono: CircleCheckBig },
 ]
 
 export function ModuloCocina() {
@@ -60,7 +60,7 @@ export function ModuloCocina() {
         <h1 className="titulo mr-auto text-3xl">
           Cocina <span className="acento text-xl normal-case">{sede?.nombre}</span>
         </h1>
-        <span className={`chip ${conectado ? 'bg-turquesa-100 text-turquesa-600' : 'bg-white/10 text-noche-300'}`}>{conectado ? '● En vivo' : '○ Reconectando'}</span>
+        <span className={`chip ${conectado ? 'bg-turquesa-100 text-turquesa-700' : 'bg-white/10 text-noche-300'}`}>{conectado ? '● En vivo' : '○ Reconectando'}</span>
         <BotonSonido activo={sonido} onCambiar={setSonido} />
         <SelectorSede />
       </div>
@@ -99,6 +99,16 @@ export function ModuloCocina() {
                             <Transcurrido desde={p.creadoEn} />
                           </span>
                         </header>
+                        {p.canal === 'mesa' ? (
+                          <p className="mt-1.5 flex w-fit items-center gap-1.5 rounded-full bg-morado-100 px-2.5 py-0.5 text-xs font-extrabold text-morado">
+                            <UtensilsCrossed size={13} aria-hidden /> Mesa {p.mesa.numero}
+                            {p.mesa.zona ? ` · ${p.mesa.zona}` : ''} · ronda {p.mesa.ronda}
+                          </p>
+                        ) : (
+                          <p className="mt-1.5 flex w-fit items-center gap-1.5 rounded-full bg-azul-100 px-2.5 py-0.5 text-xs font-extrabold text-azul">
+                            <Bike size={13} aria-hidden /> Domicilio
+                          </p>
+                        )}
                         <ul className="mt-3 grid gap-1.5">
                           {p.items.map((i) => (
                             <li key={i.id} className="text-lg leading-tight">
@@ -107,12 +117,21 @@ export function ModuloCocina() {
                             </li>
                           ))}
                         </ul>
-                        {p.notas && <p className="mt-2 text-xs text-tinta-soft">Nota del cliente: {p.notas}</p>}
-                        {col.estado === 'listo' && (
-                          <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold">
-                            <Bike size={16} aria-hidden /> {p.domiciliarioNombre ?? 'Sin domiciliario asignado'}
+                        {p.notas && (
+                          <p className="mt-2 text-xs text-tinta-soft">
+                            {p.canal === 'mesa' ? 'Nota del mesero' : 'Nota del cliente'}: {p.notas}
                           </p>
                         )}
+                        {col.estado === 'listo' &&
+                          (p.canal === 'mesa' ? (
+                            <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold">
+                              <UtensilsCrossed size={16} aria-hidden /> {p.mesa.meseroNombre ? `La sirve ${p.mesa.meseroNombre}` : 'Para servir en la mesa'}
+                            </p>
+                          ) : (
+                            <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold">
+                              <Bike size={16} aria-hidden /> {p.domiciliarioNombre ?? 'Sin domiciliario asignado'}
+                            </p>
+                          ))}
                         {col.accion && (
                           <button className={`btn btn-lg mt-3 w-full ${col.accion.clase}`} onClick={() => void mover(p, col.accion!.a)} disabled={!!pendientes[p.id]}>
                             {col.accion.texto}

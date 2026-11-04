@@ -41,6 +41,34 @@ export const NOMBRE_ESTADO: Record<EstadoPedido, string> = {
 /** Orden lineal del flujo feliz (cancelado queda por fuera). */
 export const FLUJO_PEDIDO: EstadoPedido[] = ['recibido', 'en_preparacion', 'listo', 'en_camino', 'entregado']
 
+/** Canal del pedido: domicilio (cliente) o mesa (lo toma el mesero en el restaurante). */
+export const CANALES_PEDIDO = ['domicilio', 'mesa'] as const
+export type CanalPedido = (typeof CANALES_PEDIDO)[number]
+
+/** En la mesa el último paso no es "entregado" sino "servido". */
+export const NOMBRE_ESTADO_MESA_RONDA: Record<EstadoPedido, string> = {
+  recibido: 'En cola',
+  en_preparacion: 'En la parrilla',
+  listo: '¡Lista! Servir',
+  en_camino: 'En camino',
+  entregado: 'Servida',
+  cancelado: 'Cancelada',
+}
+
+/** Cuenta de una mesa: agrupa las rondas que el mesero envía a la cocina hasta que se cobra. */
+export const ESTADOS_CUENTA = ['abierta', 'cerrada', 'cancelada'] as const
+export type EstadoCuenta = (typeof ESTADOS_CUENTA)[number]
+
+/** Cómo se ve una mesa en el salón. */
+export const ESTADOS_MESA = ['libre', 'ocupada', 'para_servir', 'por_cobrar'] as const
+export type EstadoMesa = (typeof ESTADOS_MESA)[number]
+export const NOMBRE_ESTADO_MESA: Record<EstadoMesa, string> = {
+  libre: 'Libre',
+  ocupada: 'Ocupada',
+  para_servir: 'Listo para servir',
+  por_cobrar: 'Pidió la cuenta',
+}
+
 export const METODOS_PAGO = ['efectivo', 'qr'] as const
 export type MetodoPago = (typeof METODOS_PAGO)[number]
 export const NOMBRE_METODO_PAGO: Record<MetodoPago, string> = {

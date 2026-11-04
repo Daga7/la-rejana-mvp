@@ -5,6 +5,8 @@ import type { PublicadorEventos } from '../../ports/servicios'
 export const salas = {
   pedido: (id: string) => `pedido:${id}`,
   sede: (id: string) => `sede:${id}`,
+  /** Meseros de la sede: solo rondas y cuentas de mesa, nunca domicilios. */
+  mesas: (id: string) => `mesas:${id}`,
   domiciliario: (id: string) => `domiciliario:${id}`,
   admin: 'admin',
 }
@@ -22,11 +24,20 @@ export class PublicadorSocketIo implements PublicadorEventos {
 
   pedidoActualizado(p: PedidoDTO) {
     if (!this.io) return
+    if (p.canal === 'mesa') {
+      // Rondas de mesa: cocina, caja y admin de la sede, y los meseros de la sede.
+      this.io.to(salas.sede(p.sedeId)).to(salas.admin).to(salas.mesas(p.sedeId)).emit('pedido:actualizado', p)
+      return
+    }
     // Personal de la sede y administradores: pedido completo.
     this.io.to(salas.sede(p.sedeId)).to(salas.admin).emit('pedido:actualizado', p)
     if (p.domiciliarioId) this.io.to(salas.domiciliario(p.domiciliarioId)).emit('pedido:actualizado', p)
     // Cliente que sigue su pedido: solo lo que necesita ver.
     this.io.to(salas.pedido(p.id)).emit('pedido:estado', { id: p.id, estado: p.estado, actualizadoEn: p.actualizadoEn, etaMinutos: p.etaMinutos })
+  }
+
+  cuentaActualizada(sedeId: string, cuentaId: string) {
+    this.io?.to(salas.sede(sedeId)).to(salas.admin).to(salas.mesas(sedeId)).emit('cuenta:actualizada', { sedeId, cuentaId })
   }
 
   ubicacion(pedidoId: string, datos: UbicacionEnVivoDTO) {

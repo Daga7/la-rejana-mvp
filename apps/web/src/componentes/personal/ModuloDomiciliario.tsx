@@ -1,6 +1,6 @@
 'use client'
 
-import { cop, enlaceGoogleMaps, enlaceWaze, telefonoLegible, type PedidoDTO, type PlanRutaDTO, type Punto } from '@rejana/shared'
+import { cop, enlaceGoogleMaps, enlaceWaze, telefonoLegible, type PedidoDomicilioDTO, type PlanRutaDTO, type Punto } from '@rejana/shared'
 import { Check, ChefHat, Loader2, MapPinned, Navigation, Phone, Route, Satellite, TriangleAlert } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
@@ -12,7 +12,7 @@ import { api, ErrorApi, obtener } from '@/lib/api'
 import { useTiempoReal } from '@/lib/tiempo-real'
 
 interface Datos {
-  pedidos: PedidoDTO[]
+  pedidos: PedidoDomicilioDTO[]
   recorrido: { id: string; ordenParadas: string[]; iniciadoEn: string } | null
   sede: { id: string; nombre: string; lat: number; lng: number; limiteMinutosEntrega: number } | null
 }
@@ -77,7 +77,7 @@ function Lista({ datos, recargar, conectado }: { datos: Datos; recargar: () => v
           <p className="acento text-lg">Sede {datos.sede?.nombre}</p>
           <h1 className="titulo text-3xl">Tus domicilios</h1>
         </div>
-        <span className={`chip ${conectado ? 'bg-turquesa-100 text-turquesa-600' : 'bg-white/10 text-noche-300'}`}>{conectado ? '● En vivo' : '○ Sin conexión'}</span>
+        <span className={`chip ${conectado ? 'bg-turquesa-100 text-turquesa-700' : 'bg-white/10 text-noche-300'}`}>{conectado ? '● En vivo' : '○ Sin conexión'}</span>
       </div>
 
       <section aria-labelledby="t-listos">
@@ -163,7 +163,7 @@ function Lista({ datos, recargar, conectado }: { datos: Datos; recargar: () => v
               <div key={i} className="rounded-2xl border-2 border-tinta bg-white p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-black">{plan.salidas.length > 1 ? `Salida ${i + 1}` : 'Recorrido'}</p>
-                  <span className={`chip ${s.cumpleLimite ? 'bg-turquesa-100 text-turquesa-600' : 'bg-rojo-100 text-rojo-600'}`}>
+                  <span className={`chip ${s.cumpleLimite ? 'bg-turquesa-100 text-turquesa-700' : 'bg-rojo-100 text-rojo-600'}`}>
                     ~{s.minutosTotales} min {s.cumpleLimite ? '' : '· excede'}
                   </span>
                 </div>
@@ -200,7 +200,7 @@ function Recorrido({ datos, emitir, conectado, recargar }: { datos: Datos; emiti
   const [posicion, setPosicion] = useState<Punto | null>(null)
   const [errorGps, setErrorGps] = useState<string | null>(null)
   const [ultimoEnvio, setUltimoEnvio] = useState<number | null>(null)
-  const [entregando, setEntregando] = useState<PedidoDTO | null>(null)
+  const [entregando, setEntregando] = useState<PedidoDomicilioDTO | null>(null)
   const ultimo = useRef(0)
   const refEmitir = useRef(emitir)
   useEffect(() => {
@@ -255,7 +255,7 @@ function Recorrido({ datos, emitir, conectado, recargar }: { datos: Datos; emiti
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="titulo text-3xl">En recorrido</h1>
-        <span className={`chip ${errorGps ? 'bg-rojo-100 text-rojo-600' : 'bg-turquesa-100 text-turquesa-600'}`}>
+        <span className={`chip ${errorGps ? 'bg-rojo-100 text-rojo-600' : 'bg-turquesa-100 text-turquesa-700'}`}>
           <Satellite size={13} aria-hidden /> {errorGps ? 'Sin GPS' : ultimoEnvio ? `Compartiendo · ${conectado ? 'en vivo' : 'respaldo'}` : 'Buscando GPS…'}
         </span>
       </div>
@@ -341,7 +341,7 @@ function Recorrido({ datos, emitir, conectado, recargar }: { datos: Datos; emiti
   )
 }
 
-function ConfirmarEntrega({ pedido, onListo }: { pedido: PedidoDTO; onListo: () => void }) {
+function ConfirmarEntrega({ pedido, onListo }: { pedido: PedidoDomicilioDTO; onListo: () => void }) {
   const [enviando, setEnviando] = useState(false)
   return (
     <div className="grid gap-4">

@@ -30,9 +30,11 @@
   --color-amarillo: #ffc93c;
   --color-amarillo-600: #d99a00;
   --color-amarillo-100: #fff3cf;
+  --color-amarillo-800: #7a5300; /* texto sobre amarillo claro (AA 6.2:1) */
   --color-turquesa: #26bfa9;
   --color-turquesa-600: #138a79;
   --color-turquesa-100: #d6f5ef;
+  --color-turquesa-700: #0e6b5e; /* texto sobre turquesa claro (AA 5.5:1) */
   --color-morado: #6f3fc0;
   --color-morado-100: #ebe1fa;
   --color-naranja: #f7801e;
@@ -46,6 +48,7 @@
   --color-rojo-100: #fde2dc;
   --color-verde: #2fa35a;
   --color-verde-100: #dcf3e4;
+  --color-verde-700: #18693a; /* texto sobre verde claro (AA 5.8:1) */
 
   --font-sans: var(--fuente-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-acento: var(--fuente-lora), Georgia, serif;

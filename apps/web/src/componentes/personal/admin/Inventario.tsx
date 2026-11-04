@@ -47,7 +47,7 @@ export function InventarioAdmin() {
         <div className="grid items-start gap-5 lg:grid-cols-[1.7fr_1fr]">
           <section className="sticker overflow-x-auto p-4 text-tinta" aria-labelledby="t-insumos">
             <h2 id="t-insumos" className="font-extrabold">
-              Insumos {data.alertas > 0 && <span className="chip ml-2 bg-amarillo-100 text-amarillo-600">{data.alertas} bajo el mínimo</span>}
+              Insumos {data.alertas > 0 && <span className="chip ml-2 bg-amarillo-100 text-amarillo-800">{data.alertas} bajo el mínimo</span>}
             </h2>
             <table className="tabla tabla-apilable mt-2">
               <thead>

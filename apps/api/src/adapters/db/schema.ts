@@ -347,6 +347,64 @@ export const recorridos = pgTable(
   ],
 )
 
+// ---------------------------------------------------------------------------
+// Mesas (servicio en el restaurante)
+// ---------------------------------------------------------------------------
+
+export const mesas = pgTable(
+  'mesas',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sedeId: uuid('sede_id')
+      .notNull()
+      .references(() => sedes.id, { onDelete: 'restrict' }),
+    numero: integer('numero').notNull(),
+    zona: text('zona'),
+    puestos: integer('puestos').notNull().default(4),
+    activa: boolean('activa').notNull().default(true),
+    creadoEn: creadoEn(),
+    actualizadoEn: actualizadoEn(),
+  },
+  (t) => [
+    uniqueIndex('mesas_sede_numero_uq').on(t.sedeId, t.numero),
+    check('mesas_numero_ck', sql`${t.numero} between 1 and 999`),
+    check('mesas_puestos_ck', sql`${t.puestos} between 1 and 20`),
+  ],
+)
+
+/** Cuenta de una mesa: se abre al sentar a los clientes y se cierra al cobrar. Sus rondas son pedidos de canal "mesa". */
+export const cuentasMesa = pgTable(
+  'cuentas_mesa',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sedeId: uuid('sede_id')
+      .notNull()
+      .references(() => sedes.id, { onDelete: 'restrict' }),
+    mesaId: uuid('mesa_id')
+      .notNull()
+      .references(() => mesas.id, { onDelete: 'restrict' }),
+    meseroId: uuid('mesero_id').references(() => usuarios.id, { onDelete: 'set null' }),
+    comensales: integer('comensales').notNull(),
+    estado: text('estado', { enum: ['abierta', 'cerrada', 'cancelada'] }).notNull().default('abierta'),
+    cuentaPedidaEn: ts('cuenta_pedida_en'),
+    propina: integer('propina').notNull().default(0),
+    estadoPago: text('estado_pago', { enum: ['pendiente', 'pagado'] }).notNull().default('pendiente'),
+    abiertaEn: timestamp('abierta_en', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    actualizadoEn: actualizadoEn(),
+    cerradaEn: ts('cerrada_en'),
+    cerradaPor: uuid('cerrada_por').references(() => usuarios.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    // Una mesa tiene a lo sumo una cuenta abierta.
+    uniqueIndex('cuentas_mesa_abierta_uq').on(t.mesaId).where(sql`${t.estado} = 'abierta'`),
+    index('cuentas_mesa_sede_estado_idx').on(t.sedeId, t.estado),
+    check('cuentas_mesa_estado_ck', sql`${t.estado} in ('abierta','cerrada','cancelada')`),
+    check('cuentas_mesa_comensales_ck', sql`${t.comensales} between 1 and 30`),
+    check('cuentas_mesa_propina_ck', sql`${t.propina} >= 0`),
+    check('cuentas_mesa_cierre_ck', sql`(${t.estado} = 'abierta') = (${t.cerradaEn} is null)`),
+  ],
+)
+
 export const pedidos = pgTable(
   'pedidos',
   {
@@ -355,18 +413,22 @@ export const pedidos = pgTable(
     sedeId: uuid('sede_id')
       .notNull()
       .references(() => sedes.id, { onDelete: 'restrict' }),
-    canal: text('canal', { enum: ['domicilio'] }).notNull().default('domicilio'),
+    canal: text('canal', { enum: ['domicilio', 'mesa'] }).notNull().default('domicilio'),
     clienteId: uuid('cliente_id').references(() => usuarios.id, { onDelete: 'set null' }),
     estado: text('estado', { enum: ESTADOS_PEDIDO_DB }).notNull().default('recibido'),
-    contactoNombre: text('contacto_nombre').notNull(),
-    contactoTelefono: text('contacto_telefono').notNull(),
-    direccion: text('direccion').notNull(),
+    // Solo domicilio (la restricción pedidos_canal_ck lo exige según el canal).
+    contactoNombre: text('contacto_nombre'),
+    contactoTelefono: text('contacto_telefono'),
+    direccion: text('direccion'),
     direccionDetalle: text('direccion_detalle'),
     barrio: text('barrio'),
-    lat: doublePrecision('lat').notNull(),
-    lng: doublePrecision('lng').notNull(),
+    lat: doublePrecision('lat'),
+    lng: doublePrecision('lng'),
     notas: text('notas'),
-    metodoPago: text('metodo_pago', { enum: ['efectivo', 'qr'] }).notNull(),
+    metodoPago: text('metodo_pago', { enum: ['efectivo', 'qr'] }),
+    // Solo mesa: la cuenta a la que pertenece la ronda y su número dentro de la cuenta.
+    cuentaId: uuid('cuenta_id').references(() => cuentasMesa.id, { onDelete: 'restrict' }),
+    ronda: integer('ronda'),
     pagaCon: integer('paga_con'),
     subtotal: integer('subtotal').notNull(),
     costoEnvio: integer('costo_envio').notNull(),
@@ -394,6 +456,13 @@ export const pedidos = pgTable(
     index('pedidos_domiciliario_idx').on(t.domiciliarioId, t.estado),
     check('pedidos_estado_ck', sql`${t.estado} in ('recibido','en_preparacion','listo','en_camino','entregado','cancelado')`),
     check('pedidos_totales_ck', sql`${t.subtotal} >= 0 and ${t.costoEnvio} >= 0 and ${t.total} = ${t.subtotal} + ${t.costoEnvio}`),
+    check(
+      'pedidos_canal_ck',
+      sql`(${t.canal} = 'domicilio' and ${t.cuentaId} is null and ${t.ronda} is null and ${t.contactoNombre} is not null and ${t.contactoTelefono} is not null and ${t.direccion} is not null and ${t.lat} is not null and ${t.lng} is not null and ${t.metodoPago} is not null)
+        or (${t.canal} = 'mesa' and ${t.cuentaId} is not null and ${t.ronda} >= 1 and ${t.costoEnvio} = 0 and ${t.clienteId} is null and ${t.domiciliarioId} is null and ${t.estado} <> 'en_camino')`,
+    ),
+    index('pedidos_cuenta_idx').on(t.cuentaId),
+    uniqueIndex('pedidos_cuenta_ronda_uq').on(t.cuentaId, t.ronda),
   ],
 )
 
@@ -436,9 +505,9 @@ export const pagos = pgTable(
   'pagos',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    pedidoId: uuid('pedido_id')
-      .notNull()
-      .references(() => pedidos.id, { onDelete: 'cascade' }),
+    // Un pago es de un pedido a domicilio o de una cuenta de mesa (nunca de ambos).
+    pedidoId: uuid('pedido_id').references(() => pedidos.id, { onDelete: 'cascade' }),
+    cuentaId: uuid('cuenta_id').references(() => cuentasMesa.id, { onDelete: 'cascade' }),
     metodo: text('metodo', { enum: ['efectivo', 'qr'] }).notNull(),
     monto: integer('monto').notNull(),
     recibido: integer('recibido'),
@@ -447,7 +516,12 @@ export const pagos = pgTable(
     registradoPor: uuid('registrado_por').references(() => usuarios.id, { onDelete: 'set null' }),
     creadoEn: creadoEn(),
   },
-  (t) => [index('pagos_pedido_idx').on(t.pedidoId), check('pagos_monto_ck', sql`${t.monto} >= 0`)],
+  (t) => [
+    index('pagos_pedido_idx').on(t.pedidoId),
+    index('pagos_cuenta_idx').on(t.cuentaId),
+    check('pagos_monto_ck', sql`${t.monto} >= 0`),
+    check('pagos_destino_ck', sql`(${t.pedidoId} is null) <> (${t.cuentaId} is null)`),
+  ],
 )
 
 export const suscripcionesPush = pgTable(

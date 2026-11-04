@@ -127,6 +127,9 @@ export const itemPedidoSchema = z.object({
   notas: textoOpcional(140),
 })
 
+/** Un mismo producto con la misma nota no puede venir dos veces (se suma la cantidad). */
+const sinRepetidos = (items: { productoId: string; notas?: string | undefined }[]) => new Set(items.map((i) => `${i.productoId}|${i.notas ?? ''}`)).size === items.length
+
 export const crearPedidoSchema = z
   .object({
     sedeId: id,
@@ -139,10 +142,7 @@ export const crearPedidoSchema = z
     guardarDireccion: z.boolean().optional(),
     aceptaPrivacidad: z.boolean().optional(),
   })
-  .refine((p) => new Set(p.items.map((i) => `${i.productoId}|${i.notas ?? ''}`)).size === p.items.length, {
-    message: 'Hay productos repetidos en el carrito',
-    path: ['items'],
-  })
+  .refine((p) => sinRepetidos(p.items), { message: 'Hay productos repetidos en el carrito', path: ['items'] })
 export type CrearPedidoInput = z.infer<typeof crearPedidoSchema>
 
 export const cambiarEstadoSchema = z.object({
@@ -164,6 +164,45 @@ export const registrarPagoSchema = z.object({
   recibido: pesos.optional(),
   referencia: textoOpcional(80),
 })
+
+// ---------------------------------------------------------------------------
+// Mesas (mesero y caja)
+// ---------------------------------------------------------------------------
+
+export const abrirCuentaSchema = z.object({
+  mesaId: id,
+  comensales: z.int('Escribe cuántas personas').min(1, 'Mínimo 1 persona').max(30, 'Máximo 30 personas'),
+})
+
+export const actualizarCuentaSchema = z
+  .object({
+    comensales: z.int().min(1, 'Mínimo 1 persona').max(30, 'Máximo 30 personas').optional(),
+    /** true: la mesa pidió la cuenta (la caja la ve por cobrar); false: siguen pidiendo. */
+    cuentaPedida: z.boolean().optional(),
+  })
+  .refine((c) => c.comensales !== undefined || c.cuentaPedida !== undefined, { message: 'No hay nada que cambiar' })
+
+export const rondaSchema = z
+  .object({
+    items: z.array(itemPedidoSchema).min(1, 'Agrega al menos un producto').max(30),
+    notas: textoOpcional(300),
+  })
+  .refine((r) => sinRepetidos(r.items), { message: 'Hay productos repetidos en la ronda', path: ['items'] })
+export type RondaInput = z.infer<typeof rondaSchema>
+
+export const pagoCuentaSchema = z.object({
+  metodo: z.enum(METODOS_PAGO),
+  monto: pesos.min(1, 'El monto debe ser mayor que cero'),
+  recibido: pesos.optional(),
+  referencia: textoOpcional(80),
+})
+
+/** Cobro de una mesa en un solo paso: uno o varios pagos (cuenta dividida) y propina voluntaria. */
+export const cobrarCuentaSchema = z.object({
+  pagos: z.array(pagoCuentaSchema).min(1, 'Registra al menos un pago').max(6, 'Máximo 6 pagos por cuenta'),
+  propina: pesos.default(0),
+})
+export type CobrarCuentaInput = z.infer<typeof cobrarCuentaSchema>
 
 export const suscripcionPushSchema = z.object({
   endpoint: z.url({ protocol: /^https$/, error: 'Suscripción inválida' }).max(1000),
@@ -208,6 +247,15 @@ export const sedeSchema = z.object({
   qrPagoInstrucciones: z.string().trim().max(300).optional().nullable(),
   activa: z.boolean(),
 })
+
+export const mesaSchema = z.object({
+  numero: z.int('Escribe el número de la mesa').min(1, 'Mínimo 1').max(999, 'Máximo 999'),
+  /** Zona del salón (p. ej. "Terraza", "Segundo piso"). */
+  zona: z.string().trim().max(40, 'Máximo 40 caracteres').optional().nullable(),
+  puestos: z.int().min(1, 'Mínimo 1 puesto').max(20, 'Máximo 20 puestos'),
+  activa: z.boolean(),
+})
+export type MesaInput = z.infer<typeof mesaSchema>
 
 export const categoriaSchema = z.object({
   nombre: z.string().trim().min(2).max(40),

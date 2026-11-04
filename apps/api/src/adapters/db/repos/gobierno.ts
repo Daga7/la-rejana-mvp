@@ -99,7 +99,8 @@ export function repoReportes(db: Ejecutor): RepoReportes {
         .select({
           dia: DIA_BOGOTA,
           sedeId: pedidos.sedeId,
-          pedidos: sql<number>`count(*)::int`,
+          // Una mesa con varias rondas es un solo pedido (una cuenta); cada domicilio, uno.
+          pedidos: sql<number>`count(distinct coalesce(${pedidos.cuentaId}, ${pedidos.id}))::int`,
           ventas: sql<number>`coalesce(sum(${pedidos.total}), 0)::bigint`,
         })
         .from(pedidos)

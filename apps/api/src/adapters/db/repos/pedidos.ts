@@ -10,9 +10,10 @@ import type {
   SuscripcionPush,
 } from '../../../ports/repositorios'
 import type { Ejecutor } from '../cliente'
-import { pagos, pedidoEventos, pedidoItems, pedidoSuscripciones, pedidos, recorridos, sedes, suscripcionesPush, usuarios } from '../schema'
+import { cuentasMesa, mesas, pagos, pedidoEventos, pedidoItems, pedidoSuscripciones, pedidos, recorridos, sedes, suscripcionesPush, usuarios } from '../schema'
 
 const dom = alias(usuarios, 'domiciliario')
+const mesero = alias(usuarios, 'mesero')
 
 function consultaBase(db: Ejecutor) {
   return db
@@ -20,47 +21,73 @@ function consultaBase(db: Ejecutor) {
       p: pedidos,
       sedeNombre: sedes.nombre,
       domiciliarioNombre: dom.nombre,
+      mesaId: mesas.id,
+      mesaNumero: mesas.numero,
+      zona: mesas.zona,
+      meseroNombre: mesero.nombre,
     })
     .from(pedidos)
     .innerJoin(sedes, eq(sedes.id, pedidos.sedeId))
     .leftJoin(dom, eq(dom.id, pedidos.domiciliarioId))
+    .leftJoin(cuentasMesa, eq(cuentasMesa.id, pedidos.cuentaId))
+    .leftJoin(mesas, eq(mesas.id, cuentasMesa.mesaId))
+    .leftJoin(mesero, eq(mesero.id, cuentasMesa.meseroId))
 }
 
-type FilaBase = { p: typeof pedidos.$inferSelect; sedeNombre: string; domiciliarioNombre: string | null }
+type FilaBase = {
+  p: typeof pedidos.$inferSelect
+  sedeNombre: string
+  domiciliarioNombre: string | null
+  mesaId: string | null
+  mesaNumero: number | null
+  zona: string | null
+  meseroNombre: string | null
+}
 
-const aPedido = ({ p, sedeNombre, domiciliarioNombre }: FilaBase): PedidoRegistro => ({
-  id: p.id,
-  numero: p.numero,
-  sedeId: p.sedeId,
-  sedeNombre,
-  clienteId: p.clienteId,
-  estado: p.estado,
-  contactoNombre: p.contactoNombre,
-  contactoTelefono: p.contactoTelefono,
-  direccion: p.direccion,
-  direccionDetalle: p.direccionDetalle,
-  barrio: p.barrio,
-  lat: p.lat,
-  lng: p.lng,
-  notas: p.notas,
-  metodoPago: p.metodoPago,
-  pagaCon: p.pagaCon,
-  subtotal: p.subtotal,
-  costoEnvio: p.costoEnvio,
-  total: p.total,
-  estadoPago: p.estadoPago,
-  domiciliarioId: p.domiciliarioId,
-  domiciliarioNombre,
-  recorridoId: p.recorridoId,
-  tokenSeguimientoHash: p.tokenSeguimientoHash,
-  motivoCancelacion: p.motivoCancelacion,
-  creadoEn: p.creadoEn,
-  actualizadoEn: p.actualizadoEn,
-  enCaminoEn: p.enCaminoEn,
-  entregadoEn: p.entregadoEn,
-  canceladoEn: p.canceladoEn,
-  cerradoEn: p.cerradoEn,
-})
+function aPedido(f: FilaBase): PedidoRegistro {
+  const { p } = f
+  const base = {
+    id: p.id,
+    numero: p.numero,
+    sedeId: p.sedeId,
+    sedeNombre: f.sedeNombre,
+    clienteId: p.clienteId,
+    estado: p.estado,
+    notas: p.notas,
+    pagaCon: p.pagaCon,
+    subtotal: p.subtotal,
+    costoEnvio: p.costoEnvio,
+    total: p.total,
+    estadoPago: p.estadoPago,
+    domiciliarioId: p.domiciliarioId,
+    domiciliarioNombre: f.domiciliarioNombre,
+    recorridoId: p.recorridoId,
+    tokenSeguimientoHash: p.tokenSeguimientoHash,
+    motivoCancelacion: p.motivoCancelacion,
+    creadoEn: p.creadoEn,
+    actualizadoEn: p.actualizadoEn,
+    enCaminoEn: p.enCaminoEn,
+    entregadoEn: p.entregadoEn,
+    canceladoEn: p.canceladoEn,
+    cerradoEn: p.cerradoEn,
+  }
+  if (p.canal === 'mesa') {
+    // La restricción pedidos_canal_ck garantiza cuenta y ronda en las rondas de mesa.
+    return { ...base, canal: 'mesa', cuentaId: p.cuentaId!, ronda: p.ronda!, mesaId: f.mesaId!, mesaNumero: f.mesaNumero!, zona: f.zona, meseroNombre: f.meseroNombre }
+  }
+  return {
+    ...base,
+    canal: 'domicilio',
+    contactoNombre: p.contactoNombre!,
+    contactoTelefono: p.contactoTelefono!,
+    direccion: p.direccion!,
+    direccionDetalle: p.direccionDetalle,
+    barrio: p.barrio,
+    lat: p.lat!,
+    lng: p.lng!,
+    metodoPago: p.metodoPago!,
+  }
+}
 
 export function repoPedidos(db: Ejecutor): RepoPedidos {
   const porId = async (id: string) => {
@@ -68,10 +95,16 @@ export function repoPedidos(db: Ejecutor): RepoPedidos {
     return r ? aPedido(r) : null
   }
   return {
-    async crear(datos, items) {
+    async crear(datos, items, actor) {
       const [p] = await db.insert(pedidos).values(datos).returning({ id: pedidos.id })
       await db.insert(pedidoItems).values(items.map((i) => ({ ...i, pedidoId: p!.id })))
-      await db.insert(pedidoEventos).values({ pedidoId: p!.id, estado: 'recibido', actorId: datos.clienteId, actorRol: datos.clienteId ? 'cliente' : 'invitado' })
+      const clienteId = datos.canal === 'mesa' ? null : datos.clienteId
+      await db.insert(pedidoEventos).values({
+        pedidoId: p!.id,
+        estado: 'recibido',
+        actorId: actor?.id ?? clienteId,
+        actorRol: actor?.rol ?? (clienteId ? 'cliente' : 'invitado'),
+      })
       return (await porId(p!.id))!
     },
     async porId(id, opciones) {
@@ -90,6 +123,8 @@ export function repoPedidos(db: Ejecutor): RepoPedidos {
         .where(
           and(
             f.sedeId ? eq(pedidos.sedeId, f.sedeId) : undefined,
+            f.canal ? eq(pedidos.canal, f.canal) : undefined,
+            f.cuentaIds ? (f.cuentaIds.length ? inArray(pedidos.cuentaId, f.cuentaIds) : sql`false`) : undefined,
             f.estados?.length ? inArray(pedidos.estado, f.estados) : undefined,
             f.clienteId ? eq(pedidos.clienteId, f.clienteId) : undefined,
             f.domiciliarioId ? eq(pedidos.domiciliarioId, f.domiciliarioId) : undefined,

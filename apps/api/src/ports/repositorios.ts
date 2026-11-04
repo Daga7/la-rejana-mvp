@@ -1,5 +1,7 @@
 import type {
+  CanalPedido,
   EstadoBuzon,
+  EstadoCuenta,
   EstadoPago,
   EstadoPedido,
   MetodoPago,
@@ -349,22 +351,14 @@ export interface RepoInventario {
 // Pedidos y domicilios
 // ---------------------------------------------------------------------------
 
-export interface PedidoRegistro {
+interface PedidoRegistroBase {
   id: string
   numero: number
   sedeId: string
   sedeNombre: string
   clienteId: string | null
   estado: EstadoPedido
-  contactoNombre: string
-  contactoTelefono: string
-  direccion: string
-  direccionDetalle: string | null
-  barrio: string | null
-  lat: number
-  lng: number
   notas: string | null
-  metodoPago: MetodoPago
   pagaCon: number | null
   subtotal: number
   costoEnvio: number
@@ -382,6 +376,32 @@ export interface PedidoRegistro {
   canceladoEn: Date | null
   cerradoEn: Date | null
 }
+
+export interface PedidoDomicilioRegistro extends PedidoRegistroBase {
+  canal: 'domicilio'
+  contactoNombre: string
+  contactoTelefono: string
+  direccion: string
+  direccionDetalle: string | null
+  barrio: string | null
+  lat: number
+  lng: number
+  metodoPago: MetodoPago
+}
+
+/** Ronda de una cuenta de mesa. */
+export interface PedidoMesaRegistro extends PedidoRegistroBase {
+  canal: 'mesa'
+  cuentaId: string
+  ronda: number
+  mesaId: string
+  mesaNumero: number
+  zona: string | null
+  /** Mesero que atiende la cuenta. */
+  meseroNombre: string | null
+}
+
+export type PedidoRegistro = PedidoDomicilioRegistro | PedidoMesaRegistro
 
 export interface ItemPedidoRegistro {
   id: string
@@ -410,8 +430,17 @@ export interface PagoRegistro {
   creadoEn: Date
 }
 
-export interface NuevoPedido {
+interface NuevoPedidoBase {
   sedeId: string
+  notas: string | null
+  subtotal: number
+  costoEnvio: number
+  total: number
+  claveIdempotencia: string | null
+}
+
+export interface NuevoPedidoDomicilio extends NuevoPedidoBase {
+  canal?: 'domicilio'
   clienteId: string | null
   contactoNombre: string
   contactoTelefono: string
@@ -420,18 +449,23 @@ export interface NuevoPedido {
   barrio: string | null
   lat: number
   lng: number
-  notas: string | null
   metodoPago: MetodoPago
   pagaCon: number | null
-  subtotal: number
-  costoEnvio: number
-  total: number
   tokenSeguimientoHash: string | null
-  claveIdempotencia: string | null
 }
+
+export interface NuevoPedidoMesa extends NuevoPedidoBase {
+  canal: 'mesa'
+  cuentaId: string
+  ronda: number
+}
+
+export type NuevoPedido = NuevoPedidoDomicilio | NuevoPedidoMesa
 
 export interface FiltroPedidos {
   sedeId?: string
+  canal?: CanalPedido
+  cuentaIds?: string[]
   estados?: EstadoPedido[]
   clienteId?: string
   domiciliarioId?: string
@@ -442,7 +476,8 @@ export interface FiltroPedidos {
 }
 
 export interface RepoPedidos {
-  crear(datos: NuevoPedido, items: Omit<ItemPedidoRegistro, 'id'>[]): Promise<PedidoRegistro>
+  /** `actor`: quién lo crea, para el primer evento (por defecto, el cliente o el invitado). */
+  crear(datos: NuevoPedido, items: Omit<ItemPedidoRegistro, 'id'>[], actor?: { id: string; rol: string }): Promise<PedidoRegistro>
   porId(id: string, opciones?: { bloquear?: boolean }): Promise<PedidoRegistro | null>
   porIdempotencia(clave: string): Promise<PedidoRegistro | null>
   listar(filtro: FiltroPedidos): Promise<PedidoRegistro[]>
@@ -469,6 +504,56 @@ export interface RepoPedidos {
   registrarEvento(datos: { pedidoId: string; estado: EstadoPedido; actorId: string | null; actorRol: string | null; nota?: string | null }): Promise<void>
   registrarPago(datos: Omit<PagoRegistro, 'id' | 'creadoEn'> & { pedidoId: string; registradoPor: string }): Promise<void>
   rotarTokenSeguimiento(id: string, tokenHash: string): Promise<void>
+}
+
+// --- Mesas -----------------------------------------------------------------------------
+
+export interface MesaRegistro {
+  id: string
+  sedeId: string
+  numero: number
+  zona: string | null
+  puestos: number
+  activa: boolean
+}
+
+export interface CuentaRegistro {
+  id: string
+  sedeId: string
+  mesaId: string
+  mesaNumero: number
+  zona: string | null
+  meseroId: string | null
+  meseroNombre: string | null
+  comensales: number
+  estado: EstadoCuenta
+  cuentaPedidaEn: Date | null
+  propina: number
+  estadoPago: EstadoPago
+  abiertaEn: Date
+  actualizadoEn: Date
+  cerradaEn: Date | null
+}
+
+export interface RepoMesas {
+  mesas(sedeId: string, opciones?: { incluirInactivas?: boolean }): Promise<MesaRegistro[]>
+  mesa(id: string): Promise<MesaRegistro | null>
+  crearMesa(datos: Omit<MesaRegistro, 'id'>): Promise<MesaRegistro>
+  actualizarMesa(id: string, cambios: Partial<Omit<MesaRegistro, 'id' | 'sedeId'>>): Promise<void>
+  cuentasAbiertas(sedeId: string): Promise<CuentaRegistro[]>
+  /** `bloquear`: bloquea la fila hasta el fin de la transacción (rondas y cobros concurrentes). */
+  cuenta(id: string, opciones?: { bloquear?: boolean }): Promise<CuentaRegistro | null>
+  cuentaAbiertaDeMesa(mesaId: string): Promise<CuentaRegistro | null>
+  /** Falla con violación de unicidad (23505) si la mesa ya tiene una cuenta abierta. */
+  abrirCuenta(datos: { sedeId: string; mesaId: string; meseroId: string | null; comensales: number }): Promise<CuentaRegistro>
+  actualizarCuenta(
+    id: string,
+    cambios: Partial<Pick<CuentaRegistro, 'comensales' | 'cuentaPedidaEn' | 'estado' | 'propina' | 'estadoPago' | 'cerradaEn'> & { cerradaPor: string | null }>,
+  ): Promise<void>
+  /** Número de la próxima ronda (llamar con la cuenta bloqueada). */
+  siguienteRonda(cuentaId: string): Promise<number>
+  pagos(cuentaId: string): Promise<PagoRegistro[]>
+  registrarPago(datos: Omit<PagoRegistro, 'id' | 'creadoEn'> & { cuentaId: string; registradoPor: string }): Promise<void>
 }
 
 export interface Recorrido {
@@ -596,6 +681,7 @@ export interface Repositorios {
   catalogo: RepoCatalogo
   inventario: RepoInventario
   pedidos: RepoPedidos
+  mesas: RepoMesas
   recorridos: RepoRecorridos
   suscripciones: RepoSuscripciones
   buzon: RepoBuzon

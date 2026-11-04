@@ -1,6 +1,6 @@
 'use client'
 
-import { cop, FLUJO_PEDIDO, hora, NOMBRE_METODO_PAGO, type EstadoPedido, type PedidoDTO, type SedePublicaDTO, type UbicacionEnVivoDTO } from '@rejana/shared'
+import { cop, FLUJO_PEDIDO, hora, NOMBRE_METODO_PAGO, type EstadoPedido, type PedidoDomicilioDTO, type SedePublicaDTO, type UbicacionEnVivoDTO } from '@rejana/shared'
 import { Bell, BellRing, Check, MessageCircle, Phone, RefreshCw, XCircle } from 'lucide-react'
 import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
@@ -79,7 +79,7 @@ export function Seguimiento({ id }: { id: string }) {
   const nuevo = useSearchParams().get('nuevo') === '1'
   const [token] = useState(() => (typeof window === 'undefined' ? null : tokenDe(id)))
   const cabeceras = token ? { 'x-pedido-token': token } : undefined
-  const { data, error, mutate } = useSWR<{ pedido: PedidoDTO }>(`/pedidos/${id}`, () => api(`/pedidos/${id}`, { cabeceras }), { refreshInterval: 20_000 })
+  const { data, error, mutate } = useSWR<{ pedido: PedidoDomicilioDTO }>(`/pedidos/${id}`, () => api(`/pedidos/${id}`, { cabeceras }), { refreshInterval: 20_000 })
   const { data: sedes } = useSWR<{ sedes: SedePublicaDTO[] }>('/sedes', obtener)
   const pedido = data?.pedido
   const sede = sedes?.sedes.find((s) => s.id === pedido?.sedeId)

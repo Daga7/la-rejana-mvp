@@ -1,6 +1,6 @@
 'use client'
 
-import { cop, fechaHora, type PedidoDTO } from '@rejana/shared'
+import { cop, fechaHora, type PedidoDomicilioDTO } from '@rejana/shared'
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import useSWR from 'swr'
@@ -11,11 +11,11 @@ import { EstadoChip } from './EstadoChip'
 
 export function MisPedidos() {
   const { usuario, cargando } = useSesion()
-  const { data, isLoading, error } = useSWR<PedidoDTO[]>(cargando ? null : ['mis-pedidos', usuario?.id ?? 'invitado'], async () => {
-    if (usuario) return (await api<{ pedidos: PedidoDTO[] }>('/mis-pedidos')).pedidos
+  const { data, isLoading, error } = useSWR<PedidoDomicilioDTO[]>(cargando ? null : ['mis-pedidos', usuario?.id ?? 'invitado'], async () => {
+    if (usuario) return (await api<{ pedidos: PedidoDomicilioDTO[] }>('/mis-pedidos')).pedidos
     const credenciales = credencialesInvitado()
     if (credenciales.length === 0) return []
-    const r = await api<{ pedidos: PedidoDTO[] }>('/pedidos/invitado', { metodo: 'POST', cuerpo: { credenciales: credenciales.map(({ id, token }) => ({ id, token })) } })
+    const r = await api<{ pedidos: PedidoDomicilioDTO[] }>('/pedidos/invitado', { metodo: 'POST', cuerpo: { credenciales: credenciales.map(({ id, token }) => ({ id, token })) } })
     return r.pedidos.sort((a, b) => b.creadoEn.localeCompare(a.creadoEn))
   })
 

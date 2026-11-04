@@ -99,6 +99,8 @@ export interface PublicadorEventos {
   finUbicacion(pedidoId: string): void
   inventarioBajo(sedeId: string, datos: { insumoId: string; insumoNombre: string; cantidad: number; stockMinimo: number }): void
   menuCambio(sedeId: string): void
+  /** Cambió una cuenta de mesa (abierta, pidió la cuenta, cobrada…): el salón y la caja se refrescan. */
+  cuentaActualizada(sedeId: string, cuentaId: string): void
 }
 
 // --- Mapas -------------------------------------------------------------------------

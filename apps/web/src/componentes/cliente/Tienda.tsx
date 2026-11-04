@@ -166,7 +166,7 @@ export function Tienda() {
               <button onClick={() => pedirCambioSede(s)} className={`sticker-blanco w-full p-4 text-left ${s.id === sede?.id ? 'outline outline-3 outline-rosa' : ''}`}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-extrabold">Sede {s.nombre}</span>
-                  <span className={`chip ${s.abierta ? 'bg-turquesa-100 text-turquesa-600' : 'bg-rojo-100 text-rojo-600'}`}>{s.abierta ? 'Abierta' : 'Cerrada'}</span>
+                  <span className={`chip ${s.abierta ? 'bg-turquesa-100 text-turquesa-700' : 'bg-rojo-100 text-rojo-600'}`}>{s.abierta ? 'Abierta' : 'Cerrada'}</span>
                 </span>
                 <span className="mt-1 block text-sm text-tinta-soft">
                   {s.direccion} · {s.barrio}

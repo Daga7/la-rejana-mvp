@@ -174,7 +174,17 @@ const STOCK: Record<ClaveInsumo, [number, number, number]> = {
 const NOMBRES = ['María Camila Torres', 'Andrés Felipe Gil', 'Juliana Restrepo', 'Santiago Mejía', 'Valentina Ospina', 'Camilo Rodríguez', 'Laura Sofía Peña', 'Sebastián Castro', 'Daniela Herrera', 'Juan Pablo Rincón', 'Natalia Vargas', 'Mateo Cárdenas', 'Paula Andrea Ruiz', 'Felipe Quintero', 'Manuela Jaramillo']
 const VIAS = ['Calle', 'Carrera', 'Transversal', 'Diagonal']
 
-export async function sembrar(db: BaseDatos, opciones: { pimienta: string; historicoDias?: number; silencioso?: boolean; costoHash?: number }) {
+export async function sembrar(
+  db: BaseDatos,
+  opciones: {
+    pimienta: string
+    historicoDias?: number
+    silencioso?: boolean
+    costoHash?: number
+    /** Mesas ocupadas en Villaluz para la demo (las pruebas lo desactivan para partir del inventario inicial). */
+    cuentasDemo?: boolean
+  },
+) {
   // La pimienta debe ser la misma TOKENS_PEPPER de la API: con otra, las contraseñas demo no servirían.
   if (opciones.pimienta.length < 32) throw new Error('Define TOKENS_PEPPER (≥ 32 caracteres) antes de sembrar')
   const log = (m: string) => {
@@ -255,7 +265,8 @@ export async function sembrar(db: BaseDatos, opciones: { pimienta: string; histo
     const cajaVillaluz = await usuario('caja.villaluz@larejana.test', 'Laura Gómez', 'caja', 'villaluz')
     const domi1 = await usuario('domi.villaluz@larejana.test', 'Jhon Fredy Cárdenas', 'domiciliario', 'villaluz', { telefono: '+573008812233' })
     await usuario('domi2.villaluz@larejana.test', 'Brayan Muñoz', 'domiciliario', 'villaluz', { telefono: '+573134409987' })
-    await usuario('mesero.villaluz@larejana.test', 'Valentina Ruiz', 'mesero', 'villaluz')
+    const meseroVillaluz = await usuario('mesero.villaluz@larejana.test', 'Valentina Ruiz', 'mesero', 'villaluz')
+    await usuario('mesero.normandia@larejana.test', 'Julián Andrés Torres', 'mesero', 'normandia')
     await usuario('cocina.normandia@larejana.test', 'Luisa Fernanda Vélez', 'cocina', 'normandia')
     await usuario('caja.normandia@larejana.test', 'Camilo Rojas', 'caja', 'normandia')
     await usuario('domi.normandia@larejana.test', 'Wilson Patiño', 'domiciliario', 'normandia', { telefono: '+573112234455' })
@@ -392,6 +403,87 @@ export async function sembrar(db: BaseDatos, opciones: { pimienta: string; histo
       }
     }
     log(`✔ ${vivos.length} pedidos en curso hoy en Villaluz`)
+
+    // --- Mesas del salón ----------------------------------------------------------------------
+    const plano: Record<string, [zona: string, puestos: number[]][]> = {
+      villaluz: [
+        ['Salón', [4, 4, 4, 2, 2, 6]],
+        ['Terraza', [4, 4, 6, 8]],
+      ],
+      normandia: [
+        ['Primer piso', [4, 4, 2, 2, 6]],
+        ['Segundo piso', [4, 6, 8]],
+      ],
+    }
+    const mesasPorSede: Record<string, Record<number, string>> = {}
+    for (const [slug, zonas] of Object.entries(plano)) {
+      let numero = 1
+      mesasPorSede[slug] = {}
+      for (const [zona, puestos] of zonas) {
+        for (const p of puestos) {
+          const m = await repos.mesas.crearMesa({ sedeId: sedes[slug]!, numero, zona, puestos: p, activa: true })
+          mesasPorSede[slug]![numero++] = m.id
+        }
+      }
+    }
+    log('✔ Mesas del salón en las dos sedes')
+
+    // --- Mesas ocupadas en Villaluz (rondas que descuentan inventario de verdad) -------------
+    if (opciones.cuentasDemo !== false) {
+      const cuentasDemo: { mesa: number; personas: number; minutos: number; pidioCuenta?: number; rondas: { estado: 'entregado' | 'en_preparacion' | 'listo'; minutos: number; productos: [string, number, string?][] }[] }[] = [
+        {
+          mesa: 2,
+          personas: 3,
+          minutos: 35,
+          rondas: [
+            { estado: 'entregado', minutos: 34, productos: [['la-rejana', 1, 'término tres cuartos'], ['la-callejera', 2]] },
+            { estado: 'en_preparacion', minutos: 7, productos: [['choriperro-clasico', 2]] },
+          ],
+        },
+        { mesa: 5, personas: 2, minutos: 21, rondas: [{ estado: 'listo', minutos: 20, productos: [['la-parchada', 2, 'sin cebolla']] }] },
+        { mesa: 8, personas: 4, minutos: 52, pidioCuenta: 3, rondas: [{ estado: 'entregado', minutos: 50, productos: [['la-rejana', 2], ['choriperro-ranchero', 2]] }] },
+      ]
+      for (const cd of cuentasDemo) {
+        const abiertaEn = new Date(ahora.getTime() - cd.minutos * 60_000)
+        const [cuenta] = await tx
+          .insert(t.cuentasMesa)
+          .values({
+            sedeId: sedes.villaluz!,
+            mesaId: mesasPorSede.villaluz![cd.mesa]!,
+            meseroId: meseroVillaluz,
+            comensales: cd.personas,
+            abiertaEn,
+            actualizadoEn: abiertaEn,
+            cuentaPedidaEn: cd.pidioCuenta ? new Date(ahora.getTime() - cd.pidioCuenta * 60_000) : null,
+          })
+          .returning({ id: t.cuentasMesa.id })
+        for (const [k, r] of cd.rondas.entries()) {
+          const items = r.productos.map(([slug, cant, nota]) => {
+            const p = productos[slug]!
+            const precio = p.precios.villaluz!
+            return { productoId: p.id, nombre: p.nombre, precioUnitario: precio, cantidad: cant, subtotal: precio * cant, notas: nota ?? null }
+          })
+          const subtotal = items.reduce((a, b) => a + b.subtotal, 0)
+          const creadoEn = new Date(ahora.getTime() - r.minutos * 60_000)
+          const [p] = await tx
+            .insert(t.pedidos)
+            .values({ canal: 'mesa', sedeId: sedes.villaluz!, cuentaId: cuenta!.id, ronda: k + 1, estado: r.estado, subtotal, costoEnvio: 0, total: subtotal, creadoEn, actualizadoEn: creadoEn, entregadoEn: r.estado === 'entregado' ? new Date(creadoEn.getTime() + 16 * 60_000) : null })
+            .returning({ id: t.pedidos.id })
+          await tx.insert(t.pedidoItems).values(items.map((it) => ({ ...it, pedidoId: p!.id })))
+          await tx.insert(t.pedidoEventos).values({ pedidoId: p!.id, estado: 'recibido', actorId: meseroVillaluz, actorRol: 'mesero', creadoEn })
+          await tx.insert(t.pedidoEventos).values({ pedidoId: p!.id, estado: 'en_preparacion', creadoEn: new Date(creadoEn.getTime() + 2 * 60_000) })
+          if (r.estado !== 'en_preparacion') await tx.insert(t.pedidoEventos).values({ pedidoId: p!.id, estado: 'listo', creadoEn: new Date(creadoEn.getTime() + 12 * 60_000) })
+          if (r.estado === 'entregado') await tx.insert(t.pedidoEventos).values({ pedidoId: p!.id, estado: 'entregado', actorId: meseroVillaluz, actorRol: 'mesero', creadoEn: new Date(creadoEn.getTime() + 16 * 60_000) })
+          for (const it of items) {
+            const receta = PRODUCTOS.find((x) => productos[x.slug]!.id === it.productoId)!.receta
+            for (const [clave, cantidad] of receta) {
+              await repos.inventario.mover({ sedeId: sedes.villaluz!, insumoId: insumos[clave], delta: -cantidad * it.cantidad, tipo: 'consumo_pedido', pedidoId: p!.id })
+            }
+          }
+        }
+      }
+      log(`✔ ${cuentasDemo.length} mesas ocupadas en Villaluz`)
+    }
 
     await repos.auditoria.registrar({ actorId: admin, actorRol: 'admin', accion: 'seed', entidad: 'sistema', entidadId: null, datos: { nota: 'Datos de prueba cargados' } })
   })

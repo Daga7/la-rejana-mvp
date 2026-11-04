@@ -7,13 +7,15 @@ import {
   type MetodoPago,
   type PedidoCreadoDTO,
   type PedidoDTO,
+  type PedidoDomicilioDTO,
+  type RondaInput,
 } from '@rejana/shared'
 import { ErrorDominio, err } from '../domain/errores'
 import { consumoPorReceta, faltantes, productosAfectados, r3, unidadesPreparables } from '../domain/inventario'
-import { calcularTotales, clientePuedeCancelar, puedeCerrarse, reponerPorDefecto, validarPago, validarTransicion } from '../domain/pedido'
+import { calcularTotales, clientePuedeCancelar, esDomicilio, esMesa, meseroPuedeCancelar, puedeCerrarse, reponerPorDefecto, validarPago, validarTransicion } from '../domain/pedido'
 import { exigirPermiso, exigirSede, puedeOperarSede, tienePermiso, type Actor } from '../domain/permisos'
 import { dentroDeCobertura, estaAbierta } from '../domain/sede'
-import type { EventoPedido, ItemPedidoRegistro, PedidoRegistro, Repositorios, UnidadDeTrabajo } from '../ports/repositorios'
+import type { EventoPedido, ItemPedidoRegistro, NuevoPedido, PedidoRegistro, Repositorios, UnidadDeTrabajo } from '../ports/repositorios'
 import type { Criptografia, Logger, Notificador, PublicadorEventos, Reloj } from '../ports/servicios'
 import { auditar, type ContextoSolicitud } from './comun'
 import type { CasosInventario } from './inventario'
@@ -34,30 +36,17 @@ export interface DepsPedidos {
 }
 
 export function aPedidoDTO(p: PedidoRegistro, items: ItemPedidoRegistro[], eventos: EventoPedido[], eta: number | null = null): PedidoDTO {
-  return {
+  const base = {
     id: p.id,
     numero: p.numero,
     sedeId: p.sedeId,
     sedeNombre: p.sedeNombre,
     estado: p.estado,
-    contactoNombre: p.contactoNombre,
-    contactoTelefono: p.contactoTelefono,
-    direccion: p.direccion,
-    direccionDetalle: p.direccionDetalle,
-    barrio: p.barrio,
-    lat: p.lat,
-    lng: p.lng,
     notas: p.notas,
-    metodoPago: p.metodoPago,
-    pagaCon: p.pagaCon,
     subtotal: p.subtotal,
     costoEnvio: p.costoEnvio,
     total: p.total,
     estadoPago: p.estadoPago,
-    domiciliarioId: p.domiciliarioId,
-    domiciliarioNombre: p.domiciliarioNombre,
-    recorridoId: p.recorridoId,
-    esInvitado: p.clienteId === null,
     items: items.map((i) => ({ id: i.id, productoId: i.productoId, nombre: i.nombre, precioUnitario: i.precioUnitario, cantidad: i.cantidad, notas: i.notas, subtotal: i.subtotal })),
     eventos: eventos.map((e) => ({ estado: e.estado, fecha: e.creadoEn.toISOString(), nota: e.nota })),
     motivoCancelacion: p.motivoCancelacion,
@@ -65,11 +54,31 @@ export function aPedidoDTO(p: PedidoRegistro, items: ItemPedidoRegistro[], event
     actualizadoEn: p.actualizadoEn.toISOString(),
     entregadoEn: p.entregadoEn?.toISOString() ?? null,
     cerradoEn: p.cerradoEn?.toISOString() ?? null,
+  }
+  if (p.canal === 'mesa') {
+    return { ...base, canal: 'mesa', mesa: { cuentaId: p.cuentaId, mesaId: p.mesaId, numero: p.mesaNumero, zona: p.zona, ronda: p.ronda, meseroNombre: p.meseroNombre } }
+  }
+  return {
+    ...base,
+    canal: 'domicilio',
+    contactoNombre: p.contactoNombre,
+    contactoTelefono: p.contactoTelefono,
+    direccion: p.direccion,
+    direccionDetalle: p.direccionDetalle,
+    barrio: p.barrio,
+    lat: p.lat,
+    lng: p.lng,
+    metodoPago: p.metodoPago,
+    pagaCon: p.pagaCon,
+    domiciliarioId: p.domiciliarioId,
+    domiciliarioNombre: p.domiciliarioNombre,
+    recorridoId: p.recorridoId,
+    esInvitado: p.clienteId === null,
     etaMinutos: p.estado === 'en_camino' ? eta : null,
   }
 }
 
-const MENSAJES_PUSH: Record<EstadoPedido, (p: PedidoDTO) => { titulo: string; cuerpo: string }> = {
+const MENSAJES_PUSH: Record<EstadoPedido, (p: PedidoDomicilioDTO) => { titulo: string; cuerpo: string }> = {
   recibido: (p) => ({ titulo: '¡Recibimos tu pedido!', cuerpo: `Pedido #${p.numero}: ya está en la fila de la cocina.` }),
   en_preparacion: (p) => ({ titulo: 'Tu pedido está en la parrilla 🔥', cuerpo: `Pedido #${p.numero}: lo estamos preparando.` }),
   listo: (p) => ({ titulo: 'Tu pedido está listo', cuerpo: `Pedido #${p.numero}: lo estamos empacando para que salga.` }),
@@ -100,6 +109,8 @@ export function crearCasosPedidos(d: DepsPedidos) {
       if (p.clienteId === actor.id) return true
       if (tienePermiso(actor, 'pedidos.ver_sede') && puedeOperarSede(actor, p.sedeId)) return true
       if (actor.rol === 'domiciliario' && p.domiciliarioId === actor.id) return true
+      // El mesero ve las rondas de mesa de su sede (nunca los domicilios).
+      if (esMesa(p) && tienePermiso(actor, 'mesas.ver') && puedeOperarSede(actor, p.sedeId)) return true
     }
     return !!(tokenSeguimiento && p.tokenSeguimientoHash && tokenSeguimiento.length < 200 && cripto.compararSeguro(p.tokenSeguimientoHash, cripto.huella(tokenSeguimiento)))
   }
@@ -107,6 +118,11 @@ export function crearCasosPedidos(d: DepsPedidos) {
   /** Notifica al cliente (push) y a las pantallas (tiempo real). Nunca bloquea la respuesta. */
   function notificar(p: PedidoDTO, clienteId: string | null, push = true) {
     d.eventos.pedidoActualizado(p)
+    if (p.canal === 'mesa') {
+      // Rondas de mesa: no hay cliente a quien avisar; se refrescan el salón y la caja.
+      d.eventos.cuentaActualizada(p.sedeId, p.mesa.cuentaId)
+      return
+    }
     if (!push) return
     void (async () => {
       const subs = await uow.repos.suscripciones.dePedido(p.id, clienteId)
@@ -140,6 +156,53 @@ export function crearCasosPedidos(d: DepsPedidos) {
     return insumos.map(([i]) => i)
   }
 
+  type ItemSolicitado = { productoId: string; cantidad: number; notas?: string | undefined }
+
+  /** Precios y disponibilidad SIEMPRE del servidor (nunca del cliente) y consumo de insumos por receta. */
+  async function prepararLineas(sedeId: string, items: ItemSolicitado[]) {
+    const [menu, productos] = await Promise.all([uow.repos.catalogo.menuDeSede(sedeId), uow.repos.catalogo.productos()])
+    const entrada = new Map(menu.map((m) => [m.productoId, m]))
+    const producto = new Map(productos.map((p) => [p.id, p]))
+    const lineas = items.map((it) => {
+      const m = entrada.get(it.productoId)
+      const p = producto.get(it.productoId)
+      if (!m || !p || !p.activo || !m.disponible) {
+        throw new ErrorDominio('PRODUCTO_NO_DISPONIBLE', `${p?.nombre ?? 'Un producto'} no está disponible en esta sede`, { productoId: it.productoId })
+      }
+      return { productoId: p.id, nombre: p.nombre, precioUnitario: m.precio, cantidad: it.cantidad, notas: it.notas ?? null, subtotal: m.precio * it.cantidad }
+    })
+    const recetas = new Map([...(await uow.repos.catalogo.recetas(lineas.map((l) => l.productoId))).entries()].map(([k, v]) => [k, v.map((x) => ({ insumoId: x.insumoId, cantidad: x.cantidad }))]))
+    const solicitados = lineas.map((l) => ({ productoId: l.productoId, cantidad: l.cantidad }))
+    return { lineas, recetas, solicitados, consumo: consumoPorReceta(solicitados, recetas), producto }
+  }
+  type Preparadas = Awaited<ReturnType<typeof prepararLineas>>
+
+  /** Bloquea los insumos y verifica que alcancen: dos pedidos simultáneos no pueden vender el mismo stock. */
+  async function reservarInsumos(repos: Repositorios, sedeId: string, prep: Preparadas, sugerencia: string) {
+    const stock = await repos.inventario.bloquear(sedeId, [...prep.consumo.keys()])
+    const faltan = faltantes(prep.consumo, stock)
+    if (faltan.length === 0) return
+    const afectados = productosAfectados(prep.solicitados, prep.recetas, new Set(faltan.map((f) => f.insumoId)))
+    const detalle = afectados.map((id) => ({ productoId: id, nombre: prep.producto.get(id)!.nombre, maxUnidades: unidadesPreparables(prep.recetas.get(id) ?? [], stock) ?? 0 }))
+    const texto = detalle.map((x) => (x.maxUnidades > 0 ? `${x.nombre} (quedan ${x.maxUnidades})` : x.nombre)).join(', ')
+    throw new ErrorDominio('STOCK_INSUFICIENTE', `Se nos acabó lo necesario para: ${texto}. ${sugerencia}`, { productos: detalle })
+  }
+
+  /** Crea el pedido y descuenta los insumos por receta (dentro de la transacción, con los insumos ya bloqueados). */
+  async function crearYDescontar(repos: Repositorios, datos: NuevoPedido, prep: Preparadas, actor?: { id: string; rol: string }) {
+    const p = await repos.pedidos.crear(datos, prep.lineas, actor)
+    for (const [insumoId, cantidad] of prep.consumo) {
+      await repos.inventario.mover({ sedeId: datos.sedeId, insumoId, delta: -cantidad, tipo: 'consumo_pedido', pedidoId: p.id, nota: p.canal === 'mesa' ? `Mesa ${p.mesaNumero} · ronda ${p.ronda} (#${p.numero})` : `Pedido #${p.numero}` })
+    }
+    return p
+  }
+
+  /** Dos envíos simultáneos con la misma clave de idempotencia: gana uno y el otro recibe el mismo pedido. */
+  function esDuplicado(error: unknown): boolean {
+    const codigo = (error as { code?: string; cause?: { code?: string } }).code ?? (error as { cause?: { code?: string } }).cause?.code
+    return codigo === '23505'
+  }
+
   return {
     puedeVer,
     publicar,
@@ -167,60 +230,33 @@ export function crearCasosPedidos(d: DepsPedidos) {
         throw new ErrorDominio('FUERA_DE_COBERTURA', `Esa dirección está a ${numero(Math.round(km * 10) / 10)} km de la sede ${sede.nombre}; llegamos hasta ${numero(sede.radioEntregaKm)} km.`, { km })
       }
 
-      // Precios y disponibilidad SIEMPRE del servidor (nunca del cliente).
-      const [menu, productos] = await Promise.all([uow.repos.catalogo.menuDeSede(sede.id), uow.repos.catalogo.productos()])
-      const entrada = new Map(menu.map((m) => [m.productoId, m]))
-      const producto = new Map(productos.map((p) => [p.id, p]))
-      const lineas = e.items.map((it) => {
-        const m = entrada.get(it.productoId)
-        const p = producto.get(it.productoId)
-        if (!m || !p || !p.activo || !m.disponible) {
-          throw new ErrorDominio('PRODUCTO_NO_DISPONIBLE', `${p?.nombre ?? 'Un producto'} no está disponible en esta sede`, { productoId: it.productoId })
-        }
-        return { productoId: p.id, nombre: p.nombre, precioUnitario: m.precio, cantidad: it.cantidad, notas: it.notas ?? null, subtotal: m.precio * it.cantidad }
-      })
-      const totales = calcularTotales(lineas, sede.tarifaDomicilio)
+      const prep = await prepararLineas(sede.id, e.items)
+      const totales = calcularTotales(prep.lineas, sede.tarifaDomicilio)
       const pagaCon = validarPago(e.metodoPago, totales.total, e.pagaCon)
-      const recetas = new Map([...(await uow.repos.catalogo.recetas(lineas.map((l) => l.productoId))).entries()].map(([k, v]) => [k, v.map((x) => ({ insumoId: x.insumoId, cantidad: x.cantidad }))]))
-      const solicitados = lineas.map((l) => ({ productoId: l.productoId, cantidad: l.cantidad }))
-      const consumo = consumoPorReceta(solicitados, recetas)
+      const consumo = prep.consumo
       const token = clienteId ? null : cripto.tokenAleatorio(32)
 
       let creado: PedidoRegistro
       try {
         creado = await uow.transaccion(async (repos) => {
-          // Bloquea los insumos involucrados: dos pedidos simultáneos no pueden vender el mismo stock.
-          const stock = await repos.inventario.bloquear(sede.id, [...consumo.keys()])
-          const faltan = faltantes(consumo, stock)
-          if (faltan.length) {
-            const afectados = productosAfectados(solicitados, recetas, new Set(faltan.map((f) => f.insumoId)))
-            const detalle = afectados.map((id) => ({ productoId: id, nombre: producto.get(id)!.nombre, maxUnidades: unidadesPreparables(recetas.get(id) ?? [], stock) ?? 0 }))
-            const texto = detalle.map((x) => (x.maxUnidades > 0 ? `${x.nombre} (quedan ${x.maxUnidades})` : x.nombre)).join(', ')
-            throw new ErrorDominio('STOCK_INSUFICIENTE', `Se nos acabó lo necesario para: ${texto}. Ajusta tu carrito.`, { productos: detalle })
-          }
-          const p = await repos.pedidos.crear(
-            {
-              sedeId: sede.id,
-              clienteId,
-              contactoNombre: e.contacto.nombre,
-              contactoTelefono: e.contacto.telefono,
-              direccion: e.entrega.direccion,
-              direccionDetalle: e.entrega.detalle ?? null,
-              barrio: e.entrega.barrio ?? null,
-              lat: e.entrega.lat,
-              lng: e.entrega.lng,
-              notas: e.notas ?? null,
-              metodoPago: e.metodoPago,
-              pagaCon,
-              ...totales,
-              tokenSeguimientoHash: token ? cripto.huella(token) : null,
-              claveIdempotencia: opciones.claveIdempotencia ?? null,
-            },
-            lineas,
-          )
-          for (const [insumoId, cantidad] of consumo) {
-            await repos.inventario.mover({ sedeId: sede.id, insumoId, delta: -cantidad, tipo: 'consumo_pedido', pedidoId: p.id, nota: `Pedido #${p.numero}` })
-          }
+          await reservarInsumos(repos, sede.id, prep, 'Ajusta tu carrito.')
+          const p = await crearYDescontar(repos, {
+            sedeId: sede.id,
+            clienteId,
+            contactoNombre: e.contacto.nombre,
+            contactoTelefono: e.contacto.telefono,
+            direccion: e.entrega.direccion,
+            direccionDetalle: e.entrega.detalle ?? null,
+            barrio: e.entrega.barrio ?? null,
+            lat: e.entrega.lat,
+            lng: e.entrega.lng,
+            notas: e.notas ?? null,
+            metodoPago: e.metodoPago,
+            pagaCon,
+            ...totales,
+            tokenSeguimientoHash: token ? cripto.huella(token) : null,
+            claveIdempotencia: opciones.claveIdempotencia ?? null,
+          }, prep)
           if (clienteId && e.guardarDireccion && (await repos.direcciones.contar(clienteId)) < 10) {
             const ya = (await repos.direcciones.deUsuario(clienteId)).some((x) => x.direccion.toLowerCase() === e.entrega.direccion.toLowerCase())
             if (!ya) await repos.direcciones.crear({ usuarioId: clienteId, etiqueta: 'Casa', direccion: e.entrega.direccion, detalle: e.entrega.detalle ?? null, barrio: e.entrega.barrio ?? null, lat: e.entrega.lat, lng: e.entrega.lng })
@@ -228,9 +264,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
           return p
         })
       } catch (error) {
-        // Dos envíos simultáneos con la misma clave: gana uno, el otro recibe el mismo pedido.
-        const codigo = (error as { code?: string; cause?: { code?: string } }).code ?? (error as { cause?: { code?: string } }).cause?.code
-        if (codigo === '23505' && opciones.claveIdempotencia) {
+        if (esDuplicado(error) && opciones.claveIdempotencia) {
           const previo = await uow.repos.pedidos.porIdempotencia(opciones.claveIdempotencia)
           if (previo) return reintento(previo, clienteId)
         }
@@ -239,20 +273,76 @@ export function crearCasosPedidos(d: DepsPedidos) {
 
       void d.inventario.revisarAlertas(sede.id, [...consumo.keys()]).catch(() => {})
       d.eventos.menuCambio(sede.id)
-      const salida = await dto(uow.repos, creado)
+      const salida = (await dto(uow.repos, creado)) as PedidoDomicilioDTO
       d.eventos.pedidoActualizado(salida)
       log.info({ pedido: creado.numero, sede: sede.slug, ip: ctx.ip ? 'registrada' : null }, 'Pedido creado')
       return { pedido: salida, tokenSeguimiento: token }
 
       async function reintento(previo: PedidoRegistro, quien: string | null): Promise<PedidoCreadoDTO> {
-        if ((previo.clienteId ?? null) !== quien) throw err.conflicto('Esta solicitud ya se usó. Recarga la página.')
+        if (!esDomicilio(previo) || (previo.clienteId ?? null) !== quien) throw err.conflicto('Esta solicitud ya se usó. Recarga la página.')
         let tokenNuevo: string | null = null
         if (!quien) {
           // El invitado perdió la respuesta original: se emite un token nuevo (la clave de idempotencia es secreta).
           tokenNuevo = cripto.tokenAleatorio(32)
           await uow.repos.pedidos.rotarTokenSeguimiento(previo.id, cripto.huella(tokenNuevo))
         }
-        return { pedido: await dto(uow.repos, previo), tokenSeguimiento: tokenNuevo }
+        return { pedido: (await dto(uow.repos, previo)) as PedidoDomicilioDTO, tokenSeguimiento: tokenNuevo }
+      }
+    },
+
+    /**
+     * Ronda de una mesa: el mesero envía a la cocina lo que pidió la mesa. Mismo camino que un domicilio:
+     * precios del servidor, insumos bloqueados y descontados por receta en la misma transacción.
+     */
+    async crearRonda(actor: Actor, cuentaId: string, e: RondaInput, opciones: { claveIdempotencia?: string | null }, ctx: ContextoSolicitud): Promise<PedidoDTO> {
+      const a = exigirPermiso(actor, 'mesas.atender')
+      if (opciones.claveIdempotencia) {
+        const previo = await uow.repos.pedidos.porIdempotencia(opciones.claveIdempotencia)
+        if (previo) return rondaRepetida(previo)
+      }
+      const cuenta = await uow.repos.mesas.cuenta(cuentaId)
+      if (!cuenta) throw err.noEncontrado('No encontramos esa cuenta')
+      exigirSede(a, cuenta.sedeId)
+      if (cuenta.estado !== 'abierta') throw err.conflicto('La cuenta de esta mesa ya se cerró')
+      const sede = await uow.repos.sedes.porId(cuenta.sedeId)
+      if (!sede?.activa) throw new ErrorDominio('SEDE_NO_DISPONIBLE', 'Esta sede no está recibiendo pedidos')
+      const prep = await prepararLineas(cuenta.sedeId, e.items)
+      const totales = calcularTotales(prep.lineas, 0)
+
+      let creado: PedidoRegistro
+      try {
+        creado = await uow.transaccion(async (repos) => {
+          const c = await repos.mesas.cuenta(cuentaId, { bloquear: true })
+          if (!c || c.estado !== 'abierta') throw err.conflicto('La cuenta de esta mesa ya se cerró')
+          await reservarInsumos(repos, c.sedeId, prep, 'Avísale a la mesa y ajusta la ronda.')
+          const ronda = await repos.mesas.siguienteRonda(c.id)
+          const p = await crearYDescontar(
+            repos,
+            { canal: 'mesa', sedeId: c.sedeId, cuentaId: c.id, ronda, notas: e.notas ?? null, ...totales, claveIdempotencia: opciones.claveIdempotencia ?? null },
+            prep,
+            { id: a.id, rol: a.rol },
+          )
+          // Si la mesa había pedido la cuenta y sigue pidiendo, la caja ya no la ve por cobrar.
+          if (c.cuentaPedidaEn) await repos.mesas.actualizarCuenta(c.id, { cuentaPedidaEn: null })
+          return p
+        })
+      } catch (error) {
+        if (esDuplicado(error) && opciones.claveIdempotencia) {
+          const previo = await uow.repos.pedidos.porIdempotencia(opciones.claveIdempotencia)
+          if (previo) return rondaRepetida(previo)
+        }
+        throw error
+      }
+
+      void d.inventario.revisarAlertas(cuenta.sedeId, [...prep.consumo.keys()]).catch(() => {})
+      d.eventos.menuCambio(cuenta.sedeId)
+      log.info({ pedido: creado.numero, mesa: cuenta.mesaNumero, ip: ctx.ip ? 'registrada' : null }, 'Ronda enviada a cocina')
+      return (await publicar(creado.id))!
+
+      async function rondaRepetida(previo: PedidoRegistro): Promise<PedidoDTO> {
+        // La misma clave solo puede repetir la misma ronda de la misma cuenta.
+        if (!esMesa(previo) || previo.cuentaId !== cuentaId) throw err.conflicto('Esta solicitud ya se usó. Recarga la página.')
+        return dto(uow.repos, previo)
       }
     },
 
@@ -297,7 +387,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
         if (actor.rol === 'domiciliario') {
           if (p.domiciliarioId !== actor.id) throw err.prohibido('Ese pedido no está asignado a ti')
         } else exigirSede(actor, p.sedeId)
-        validarTransicion(actor, p.estado, e.estado)
+        validarTransicion(actor, p.estado, e.estado, p.canal)
         if (e.estado === 'en_camino' && !p.domiciliarioId) throw err.validacion('Asigna un domiciliario antes de despachar el pedido')
         await repos.pedidos.actualizar(p.id, {
           estado: e.estado,
@@ -317,6 +407,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
         const p = await repos.pedidos.porId(id, { bloquear: true })
         if (!p) throw err.noEncontrado('No encontramos ese pedido')
         exigirSede(actor, p.sedeId)
+        if (!esDomicilio(p)) throw err.validacion('Las rondas de mesa no llevan domiciliario')
         if (!['recibido', 'en_preparacion', 'listo'].includes(p.estado)) throw new ErrorDominio('TRANSICION_INVALIDA', `No se puede asignar un pedido ${NOMBRE_ESTADO[p.estado].toLowerCase()}`)
         const dom = await repos.usuarios.porId(domiciliarioId)
         if (!dom || dom.rol !== 'domiciliario' || !dom.activo || dom.sedeId !== p.sedeId) throw err.validacion('Ese domiciliario no está disponible en esta sede')
@@ -336,10 +427,15 @@ export function crearCasosPedidos(d: DepsPedidos) {
         if (!p) throw err.noEncontrado('No encontramos ese pedido')
         sedeId = p.sedeId
         const esPersonal = actor.tipo === 'usuario' && tienePermiso(actor, 'pedidos.cancelar') && puedeOperarSede(actor, p.sedeId)
+        const esMeseroDeLaSede = actor.tipo === 'usuario' && esMesa(p) && tienePermiso(actor, 'mesas.atender') && puedeOperarSede(actor, p.sedeId)
         let reponerInv: boolean
         if (esPersonal) {
-          validarTransicion(actor, p.estado, 'cancelado')
+          validarTransicion(actor, p.estado, 'cancelado', p.canal)
           reponerInv = e.reponerInventario ?? reponerPorDefecto(p.estado)
+        } else if (esMeseroDeLaSede) {
+          // El mesero corrige su ronda solo si la cocina no la ha empezado; los insumos siempre vuelven.
+          if (!meseroPuedeCancelar(p.estado)) throw new ErrorDominio('TRANSICION_INVALIDA', 'La cocina ya empezó esta ronda: para cancelarla pídeselo a la caja.')
+          reponerInv = true
         } else {
           // El cliente (o el invitado con su token) solo cancela si la cocina no ha empezado.
           const esDueno = (actor.tipo === 'usuario' && p.clienteId === actor.id) || puedeVer({ tipo: 'invitado' }, p, tokenSeguimiento)
@@ -356,7 +452,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
           nota: e.motivo,
         })
         if (reponerInv) repuestos = await reponer(repos, p, actor.tipo === 'usuario' ? actor.id : null)
-        if (esPersonal) await auditar(repos, actor, 'pedido.cancelar', 'pedido', p.id, { numero: p.numero, motivo: e.motivo, reponerInventario: reponerInv }, ctx.ip)
+        if (esPersonal || esMeseroDeLaSede) await auditar(repos, actor, 'pedido.cancelar', 'pedido', p.id, { numero: p.numero, canal: p.canal, motivo: e.motivo, reponerInventario: reponerInv }, ctx.ip)
       })
       if (repuestos.length) d.eventos.menuCambio(sedeId)
       d.alSalirDeRecorrido?.(id)
@@ -369,6 +465,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
         const p = await repos.pedidos.porId(id, { bloquear: true })
         if (!p) throw err.noEncontrado('No encontramos ese pedido')
         exigirSede(actor, p.sedeId)
+        if (esMesa(p)) throw err.validacion('Las rondas de una mesa se cobran juntas, desde la cuenta de la mesa')
         if (p.estado === 'cancelado') throw err.validacion('No se puede cobrar un pedido cancelado')
         if (p.estadoPago === 'pagado') throw err.conflicto('Este pedido ya está pagado')
         const pagado = (await repos.pedidos.pagos(p.id)).reduce((s, x) => s + x.monto, 0)
@@ -392,6 +489,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
         const p = await repos.pedidos.porId(id, { bloquear: true })
         if (!p) throw err.noEncontrado('No encontramos ese pedido')
         exigirSede(actor, p.sedeId)
+        if (esMesa(p)) throw err.validacion('Las rondas de una mesa se cierran al cobrar la cuenta de la mesa')
         if (p.cerradoEn) throw err.conflicto('El pedido ya está cerrado')
         if (!puedeCerrarse(p.estado, p.estadoPago)) throw err.validacion('Solo se cierra un pedido entregado y pagado')
         await repos.pedidos.actualizar(p.id, { cerradoEn: reloj.ahora(), cerradoPor: a.id })

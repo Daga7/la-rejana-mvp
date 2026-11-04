@@ -1,8 +1,9 @@
 import { enlaceGoogleMaps, enlaceWaze, numero, type PedidoDTO, type PlanRutaDTO, type Punto } from '@rejana/shared'
 import { ErrorDominio, err } from '../domain/errores'
+import { esDomicilio } from '../domain/pedido'
 import { exigirPermiso, type Actor, type ActorUsuario } from '../domain/permisos'
 import { planificarRuta } from '../domain/ruta'
-import type { PedidoRegistro, Recorrido, UnidadDeTrabajo } from '../ports/repositorios'
+import type { PedidoDomicilioRegistro, PedidoRegistro, Recorrido, UnidadDeTrabajo } from '../ports/repositorios'
 import type { Logger, MatrizTiempos, PublicadorEventos, Reloj } from '../ports/servicios'
 import type { ContextoSolicitud } from './comun'
 import { aPedidoDTO, type CasosPedidos } from './pedidos'
@@ -40,12 +41,12 @@ export function crearCasosDomicilios(d: DepsDomicilios) {
     return a
   }
 
-  async function pedidosAsignados(actor: ActorUsuario, ids: string[]): Promise<PedidoRegistro[]> {
+  async function pedidosAsignados(actor: ActorUsuario, ids: string[]): Promise<PedidoDomicilioRegistro[]> {
     const unicos = [...new Set(ids)]
-    const lista: PedidoRegistro[] = []
+    const lista: PedidoDomicilioRegistro[] = []
     for (const id of unicos) {
       const p = await uow.repos.pedidos.porId(id)
-      if (!p || p.domiciliarioId !== actor.id) throw err.prohibido('Uno de los pedidos no está asignado a ti')
+      if (!p || !esDomicilio(p) || p.domiciliarioId !== actor.id) throw err.prohibido('Uno de los pedidos no está asignado a ti')
       lista.push(p)
     }
     if (new Set(lista.map((p) => p.sedeId)).size > 1) throw err.validacion('Los pedidos deben ser de la misma sede')
@@ -169,7 +170,7 @@ export function crearCasosDomicilios(d: DepsDomicilios) {
         await uow.repos.recorridos.guardarUbicacion(recorrido.id, u.lat, u.lng, new Date(ahora))
       }
 
-      const enCamino = (await uow.repos.pedidos.listar({ recorridoId: recorrido.id, estados: ['en_camino'] })).sort((x, y) => recorrido.ordenParadas.indexOf(x.id) - recorrido.ordenParadas.indexOf(y.id))
+      const enCamino = (await uow.repos.pedidos.listar({ recorridoId: recorrido.id, estados: ['en_camino'] })).filter(esDomicilio).sort((x, y) => recorrido.ordenParadas.indexOf(x.id) - recorrido.ordenParadas.indexOf(y.id))
       if (enCamino.length === 0) return { aceptada: true, pendientes: 0 }
 
       // ETA: recalcula con el proveedor de mapas cada 30 s; entre tanto, descuenta el tiempo transcurrido.
@@ -191,7 +192,7 @@ export function crearCasosDomicilios(d: DepsDomicilios) {
     async entregar(actor: Actor, pedidoId: string, ctx: ContextoSolicitud): Promise<PedidoDTO> {
       const pedido = await d.pedidos().cambiarEstado(actor, pedidoId, { estado: 'entregado' }, ctx)
       limpiarPedido(pedidoId)
-      if (pedido.recorridoId) {
+      if (pedido.canal === 'domicilio' && pedido.recorridoId) {
         const r = await uow.repos.recorridos.porId(pedido.recorridoId)
         if (r && r.estado === 'activo') {
           const pendientes = await uow.repos.pedidos.listar({ recorridoId: r.id, estados: ['en_camino'] })

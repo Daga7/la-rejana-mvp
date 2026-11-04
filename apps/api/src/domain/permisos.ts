@@ -1,4 +1,4 @@
-import type { EstadoPedido, Rol } from '@rejana/shared'
+import type { CanalPedido, EstadoPedido, Rol } from '@rejana/shared'
 import { ErrorDominio, err } from './errores'
 
 /** Quién ejecuta un caso de uso. Lo construye el adaptador HTTP a partir de la sesión verificada. */
@@ -26,13 +26,18 @@ export type Permiso =
   | 'pedidos.cancelar'
   | 'pedidos.entregar'
   | 'domicilios.recorrer'
+  | 'mesas.ver'
+  | 'mesas.atender'
+  | 'mesas.servir'
+  | 'mesas.gestionar'
   | 'cliente.pedir'
 
 const PERMISOS_POR_ROL: Record<Rol, ReadonlySet<Permiso>> = {
   cliente: new Set(['cliente.pedir']),
-  mesero: new Set(['buzon.enviar']),
+  // El mesero solo ve el salón de su sede: nunca los domicilios ni los datos de sus clientes.
+  mesero: new Set(['buzon.enviar', 'mesas.ver', 'mesas.atender', 'mesas.servir']),
   cocina: new Set(['buzon.enviar', 'pedidos.ver_sede', 'pedidos.cocinar', 'inventario.ver']),
-  caja: new Set(['buzon.enviar', 'pedidos.ver_sede', 'pedidos.despachar', 'pedidos.cobrar', 'pedidos.cancelar', 'pedidos.entregar', 'inventario.ver']),
+  caja: new Set(['buzon.enviar', 'pedidos.ver_sede', 'pedidos.despachar', 'pedidos.cobrar', 'pedidos.cancelar', 'pedidos.entregar', 'inventario.ver', 'mesas.ver']),
   domiciliario: new Set(['buzon.enviar', 'domicilios.recorrer', 'pedidos.entregar']),
   admin: new Set([
     'sedes.gestionar',
@@ -50,6 +55,10 @@ const PERMISOS_POR_ROL: Record<Rol, ReadonlySet<Permiso>> = {
     'pedidos.cobrar',
     'pedidos.cancelar',
     'pedidos.entregar',
+    'mesas.ver',
+    'mesas.atender',
+    'mesas.servir',
+    'mesas.gestionar',
   ]),
 }
 
@@ -84,20 +93,33 @@ export function exigirSede(actor: Actor, sedeId: string): void {
   if (!puedeOperarSede(actor, sedeId)) throw new ErrorDominio('PROHIBIDO', 'Solo puedes operar en tu sede')
 }
 
-/** Permiso requerido para cada transición válida del pedido. */
-const TRANSICIONES: Record<EstadoPedido, Partial<Record<EstadoPedido, Permiso>>> = {
-  recibido: { en_preparacion: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
-  en_preparacion: { listo: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
-  listo: { en_camino: 'pedidos.despachar', cancelado: 'pedidos.cancelar' },
-  en_camino: { entregado: 'pedidos.entregar', cancelado: 'pedidos.cancelar' },
-  entregado: {},
-  cancelado: {},
+type Transiciones = Record<EstadoPedido, Partial<Record<EstadoPedido, Permiso>>>
+
+/** Permiso requerido para cada transición válida, según el canal del pedido. */
+const TRANSICIONES: Record<CanalPedido, Transiciones> = {
+  domicilio: {
+    recibido: { en_preparacion: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
+    en_preparacion: { listo: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
+    listo: { en_camino: 'pedidos.despachar', cancelado: 'pedidos.cancelar' },
+    en_camino: { entregado: 'pedidos.entregar', cancelado: 'pedidos.cancelar' },
+    entregado: {},
+    cancelado: {},
+  },
+  // Ronda de una mesa: la cocina la prepara y el mesero la sirve ("entregado" = servida).
+  mesa: {
+    recibido: { en_preparacion: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
+    en_preparacion: { listo: 'pedidos.cocinar', cancelado: 'pedidos.cancelar' },
+    listo: { entregado: 'mesas.servir', cancelado: 'pedidos.cancelar' },
+    en_camino: {},
+    entregado: {},
+    cancelado: {},
+  },
 }
 
-export function permisoTransicion(desde: EstadoPedido, hacia: EstadoPedido): Permiso | null {
-  return TRANSICIONES[desde][hacia] ?? null
+export function permisoTransicion(desde: EstadoPedido, hacia: EstadoPedido, canal: CanalPedido = 'domicilio'): Permiso | null {
+  return TRANSICIONES[canal][desde][hacia] ?? null
 }
 
-export function transicionesPosibles(desde: EstadoPedido): EstadoPedido[] {
-  return Object.keys(TRANSICIONES[desde]) as EstadoPedido[]
+export function transicionesPosibles(desde: EstadoPedido, canal: CanalPedido = 'domicilio'): EstadoPedido[] {
+  return Object.keys(TRANSICIONES[canal][desde]) as EstadoPedido[]
 }

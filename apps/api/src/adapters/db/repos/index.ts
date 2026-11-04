@@ -3,6 +3,7 @@ import type { BaseDatos, Ejecutor } from '../cliente'
 import { repoCodigos, repoDirecciones, repoIdentidades, repoInvitaciones, repoSesiones, repoUsuarios } from './acceso'
 import { repoCatalogo, repoInventario, repoSedes } from './catalogo'
 import { repoAuditoria, repoBuzon, repoReportes, repoWhatsapp } from './gobierno'
+import { repoMesas } from './mesas'
 import { repoPedidos, repoRecorridos, repoSuscripciones } from './pedidos'
 
 export function crearRepositorios(db: Ejecutor): Repositorios {
@@ -17,6 +18,7 @@ export function crearRepositorios(db: Ejecutor): Repositorios {
     catalogo: repoCatalogo(db),
     inventario: repoInventario(db),
     pedidos: repoPedidos(db),
+    mesas: repoMesas(db),
     recorridos: repoRecorridos(db),
     suscripciones: repoSuscripciones(db),
     buzon: repoBuzon(db),

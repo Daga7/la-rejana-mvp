@@ -45,6 +45,7 @@ export function crearCasosPush(d: { uow: UnidadDeTrabajo; push: Notificador; tok
       } else if (actor.tipo === 'usuario') {
         if (actor.rol === 'admin') salas.push('admin')
         if (['cocina', 'caja'].includes(actor.rol) && actor.sedeId) salas.push(`sede:${actor.sedeId}`)
+        if (actor.rol === 'mesero' && actor.sedeId) salas.push(`mesas:${actor.sedeId}`)
         if (actor.rol === 'domiciliario') salas.push(`domiciliario:${actor.id}`)
       }
       if (salas.length === 0) throw err.prohibido()

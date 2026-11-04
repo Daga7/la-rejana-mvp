@@ -1,18 +1,20 @@
 'use client'
 
 import { cop, sedeSchema, telefonoLegible, type SedePublicaDTO } from '@rejana/shared'
-import { MapPin, Pencil, Plus } from 'lucide-react'
+import { MapPin, Pencil, Plus, UtensilsCrossed } from 'lucide-react'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
 import { Hoja } from '@/componentes/Hoja'
 import { api, ErrorApi, obtener } from '@/lib/api'
+import { MesasSede } from './MesasSede'
 
 type SedeAdmin = SedePublicaDTO & { activa: boolean }
 
 export function SedesAdmin() {
   const { data, mutate } = useSWR<{ sedes: SedeAdmin[] }>('/admin/sedes', obtener)
   const [editar, setEditar] = useState<SedeAdmin | 'nueva' | null>(null)
+  const [mesasDe, setMesasDe] = useState<SedeAdmin | null>(null)
   return (
     <div className="grid gap-5">
       <div className="flex items-end justify-between gap-3">
@@ -36,9 +38,14 @@ export function SedesAdmin() {
                     <MapPin size={14} aria-hidden /> {s.direccion} · {s.barrio}
                   </p>
                 </div>
-                <button className="btn btn-blanco btn-sm" onClick={() => setEditar(s)}>
-                  <Pencil size={15} aria-hidden /> Editar
-                </button>
+                <div className="flex shrink-0 flex-col gap-2">
+                  <button className="btn btn-blanco btn-sm" onClick={() => setEditar(s)}>
+                    <Pencil size={15} aria-hidden /> Editar<span className="sr-only"> la sede {s.nombre}</span>
+                  </button>
+                  <button className="btn btn-blanco btn-sm" onClick={() => setMesasDe(s)}>
+                    <UtensilsCrossed size={15} aria-hidden /> Mesas<span className="sr-only"> de {s.nombre}</span>
+                  </button>
+                </div>
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <dt className="text-tinta-soft">Horario</dt>
@@ -58,6 +65,9 @@ export function SedesAdmin() {
           ))}
         </div>
       )}
+      <Hoja abierta={!!mesasDe} onCerrar={() => setMesasDe(null)} titulo={`Mesas de ${mesasDe?.nombre ?? ''}`} ancho="max-w-xl">
+        {mesasDe && <MesasSede sedeId={mesasDe.id} />}
+      </Hoja>
       <Hoja abierta={!!editar} onCerrar={() => setEditar(null)} titulo={editar === 'nueva' ? 'Nueva sede' : `Editar sede ${editar?.nombre ?? ''}`} ancho="max-w-2xl">
         {editar && <FormSede sede={editar === 'nueva' ? null : editar} onListo={() => (setEditar(null), void mutate())} />}
       </Hoja>

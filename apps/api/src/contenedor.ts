@@ -6,6 +6,7 @@ import { crearCasosAdmin } from './application/admin'
 import { crearCasosAsistente } from './application/asistente'
 import { crearCasosAuth } from './application/auth'
 import { crearCasosBuzon } from './application/buzon'
+import { crearCasosMesas } from './application/mesas'
 import { crearCasosReportes } from './application/reportes'
 import { crearCasosDomicilios, type CasosDomicilios } from './application/domicilios'
 import { crearCasosInventario } from './application/inventario'
@@ -82,6 +83,7 @@ export interface Casos {
   menu: ReturnType<typeof crearCasosMenu>
   inventario: ReturnType<typeof crearCasosInventario>
   pedidos: ReturnType<typeof crearCasosPedidos>
+  mesas: ReturnType<typeof crearCasosMesas>
   push: ReturnType<typeof crearCasosPush>
   domicilios: CasosDomicilios
   reportes: ReturnType<typeof crearCasosReportes>
@@ -187,6 +189,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     menu: crearCasosMenu({ uow, reloj, eventos }),
     inventario,
     pedidos,
+    mesas: crearCasosMesas({ uow, reloj, eventos, log }),
     push: crearCasosPush({ uow, push, tokens, pedidos }),
     domicilios,
     reportes,

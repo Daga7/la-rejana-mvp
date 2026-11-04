@@ -1,5 +1,7 @@
 import type {
   EstadoBuzon,
+  EstadoCuenta,
+  EstadoMesa,
   EstadoPago,
   EstadoPedido,
   MetodoPago,
@@ -88,30 +90,18 @@ export interface EventoPedidoDTO {
   nota: string | null
 }
 
-export interface PedidoDTO {
+/** Lo común a todo pedido: lo que ve la cocina y lo que suma en las ventas. */
+interface PedidoBaseDTO {
   id: string
   numero: number
   sedeId: string
   sedeNombre: string
   estado: EstadoPedido
-  contactoNombre: string
-  contactoTelefono: string
-  direccion: string
-  direccionDetalle: string | null
-  barrio: string | null
-  lat: number
-  lng: number
   notas: string | null
-  metodoPago: MetodoPago
-  pagaCon: number | null
   subtotal: number
   costoEnvio: number
   total: number
   estadoPago: EstadoPago
-  domiciliarioId: string | null
-  domiciliarioNombre: string | null
-  recorridoId: string | null
-  esInvitado: boolean
   items: ItemPedidoDTO[]
   eventos: EventoPedidoDTO[]
   motivoCancelacion: string | null
@@ -119,12 +109,45 @@ export interface PedidoDTO {
   actualizadoEn: string
   entregadoEn: string | null
   cerradoEn: string | null
+}
+
+/** Pedido a domicilio (lo hace el cliente o un invitado). */
+export interface PedidoDomicilioDTO extends PedidoBaseDTO {
+  canal: 'domicilio'
+  contactoNombre: string
+  contactoTelefono: string
+  direccion: string
+  direccionDetalle: string | null
+  barrio: string | null
+  lat: number
+  lng: number
+  metodoPago: MetodoPago
+  pagaCon: number | null
+  domiciliarioId: string | null
+  domiciliarioNombre: string | null
+  recorridoId: string | null
+  esInvitado: boolean
   /** Minutos estimados de llegada (solo mientras va en camino). */
   etaMinutos: number | null
 }
 
+/** Ronda de una mesa: lo que el mesero envía de una vez a la cocina. Se cobra con la cuenta de la mesa. */
+export interface PedidoMesaDTO extends PedidoBaseDTO {
+  canal: 'mesa'
+  mesa: {
+    cuentaId: string
+    mesaId: string
+    numero: number
+    zona: string | null
+    ronda: number
+    meseroNombre: string | null
+  }
+}
+
+export type PedidoDTO = PedidoDomicilioDTO | PedidoMesaDTO
+
 export interface PedidoCreadoDTO {
-  pedido: PedidoDTO
+  pedido: PedidoDomicilioDTO
   /** Solo para invitados: credencial para consultar el pedido. Se entrega una única vez. */
   tokenSeguimiento: string | null
 }
@@ -212,4 +235,75 @@ export interface ErrorApiDTO {
     mensaje: string
     campos?: Record<string, string[]>
   }
+}
+
+// --- Mesas ----------------------------------------------------------------------------
+
+export interface MesaDTO {
+  id: string
+  sedeId: string
+  numero: number
+  zona: string | null
+  puestos: number
+  activa: boolean
+}
+
+export interface PagoCuentaDTO {
+  metodo: MetodoPago
+  monto: number
+  recibido: number | null
+  cambio: number | null
+  referencia: string | null
+  creadoEn: string
+}
+
+/** Cuenta de una mesa con sus rondas. El total suma las rondas que no se cancelaron. */
+export interface CuentaMesaDTO {
+  id: string
+  sedeId: string
+  mesaId: string
+  mesaNumero: number
+  zona: string | null
+  meseroId: string | null
+  meseroNombre: string | null
+  comensales: number
+  estado: EstadoCuenta
+  /** Cuándo la mesa pidió la cuenta (null si siguen pidiendo). */
+  cuentaPedidaEn: string | null
+  abiertaEn: string
+  cerradaEn: string | null
+  subtotal: number
+  propina: number
+  estadoPago: EstadoPago
+  rondas: PedidoMesaDTO[]
+  pagos: PagoCuentaDTO[]
+}
+
+/** Resumen de la cuenta abierta de una mesa, para el plano del salón. */
+export interface ResumenCuentaDTO {
+  id: string
+  meseroId: string | null
+  meseroNombre: string | null
+  comensales: number
+  subtotal: number
+  abiertaEn: string
+  cuentaPedidaEn: string | null
+  /** Rondas en la cocina (en cola o en la parrilla). */
+  enCocina: number
+  /** Rondas listas para servir. */
+  paraServir: number
+  /** Rondas que no se cancelaron. */
+  rondas: number
+}
+
+export interface MesaSalonDTO extends MesaDTO {
+  estado: EstadoMesa
+  cuenta: ResumenCuentaDTO | null
+}
+
+export interface SalonDTO {
+  sede: { id: string; nombre: string }
+  mesas: MesaSalonDTO[]
+  /** Rondas listas en la cocina, de la más antigua a la más nueva. */
+  paraServir: PedidoMesaDTO[]
 }

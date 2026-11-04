@@ -8,7 +8,7 @@ import { avisar } from '@/componentes/Avisos'
 import { api, ErrorApi, obtener } from '@/lib/api'
 
 const ESTADOS: (EstadoBuzon | 'todos')[] = ['todos', 'nueva', 'en_revision', 'resuelta']
-const COLOR: Record<EstadoBuzon, string> = { nueva: 'bg-rosa-100 text-rosa-600', en_revision: 'bg-amarillo-100 text-amarillo-600', resuelta: 'bg-verde-100 text-verde' }
+const COLOR: Record<EstadoBuzon, string> = { nueva: 'bg-rosa-100 text-rosa-600', en_revision: 'bg-amarillo-100 text-amarillo-800', resuelta: 'bg-verde-100 text-verde-700' }
 
 export function BuzonAdmin() {
   const [filtro, setFiltro] = useState<EstadoBuzon | 'todos'>('nueva')

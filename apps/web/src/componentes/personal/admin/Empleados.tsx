@@ -108,7 +108,7 @@ export function EmpleadosAdmin() {
                       {u.whatsappHabilitado ? ' · WhatsApp' : ''}
                     </td>
                     <td data-label="Sede">{u.sedeNombre ?? 'Todas'}</td>
-                    <td data-label="Estado">{u.activo ? <span className="chip bg-verde-100 text-verde">Activo</span> : <span className="chip bg-rojo-100 text-rojo-600">Inactivo</span>}</td>
+                    <td data-label="Estado">{u.activo ? <span className="chip bg-verde-100 text-verde-700">Activo</span> : <span className="chip bg-rojo-100 text-rojo-600">Inactivo</span>}</td>
                     <td data-label="">
                       <button className="btn btn-blanco btn-sm !min-h-8" onClick={() => setEditar(u)} aria-label={`Editar a ${u.nombre}`}>
                         <Pencil size={15} aria-hidden />

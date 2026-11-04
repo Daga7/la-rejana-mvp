@@ -21,7 +21,7 @@ import { interpretePorReglas } from './adapters/ia/interprete-reglas'
 import { generadorPdfkit } from './adapters/pdf/generador-pdfkit'
 import { transcriptorOpenAICompatible, transcriptorSimulado } from './adapters/transcripcion/transcriptor'
 import { whatsappConsola, whatsappMeta } from './adapters/whatsapp/whatsapp'
-import { conectarBD, type ConexionBD } from './adapters/db/cliente'
+import { certificadoPem, conectarBD, type ConexionBD } from './adapters/db/cliente'
 import { unidadDeTrabajoPostgres } from './adapters/db/repos'
 import { correoConsola, correoResend, correoSmtp } from './adapters/correo/correo'
 import { geocoderGoogle, geocoderNinguno, geocoderNominatim, matrizGoogle, matrizHaversine, matrizOsrm } from './adapters/mapas/mapas'
@@ -109,7 +109,7 @@ export interface Sobrescrituras {
 }
 
 export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): Contenedor {
-  const conexion = conectarBD(env.DATABASE_URL, { ssl: env.DATABASE_SSL })
+  const conexion = conectarBD(env.DATABASE_URL, { ssl: env.DATABASE_SSL, ca: certificadoPem(env.DATABASE_SSL_CA), max: env.DATABASE_POOL_MAX, alError: (e) => log.error({ err: e.message }, 'Error en una conexión inactiva de PostgreSQL') })
   const uow = unidadDeTrabajoPostgres(conexion.db)
 
   const correo =

@@ -22,6 +22,10 @@ const esquema = z
     HOST: z.string().default('0.0.0.0'),
     DATABASE_URL: z.string().min(1),
     DATABASE_SSL: booleano,
+    /** Certificado raíz (PEM) del proveedor para verificar el servidor (opcional; sin él se cifra sin verificar). */
+    DATABASE_SSL_CA: opcional,
+    /** Conexiones máximas de la API. Con el pooler en modo sesión de Supabase cada una ocupa un cupo del pool. */
+    DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
     WEB_ORIGIN: z.url(),
     API_PUBLIC_URL: z.url(),
     CORS_ORIGINS: opcional,

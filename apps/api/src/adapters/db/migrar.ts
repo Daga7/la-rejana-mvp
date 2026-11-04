@@ -1,12 +1,12 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { conectarBD } from './cliente'
+import { conectarBD, opcionesBDDelEntorno, type OpcionesBD } from './cliente'
 
 /** Aplica las migraciones versionadas de ./drizzle. Se usa en desarrollo, en pruebas y como pre-deploy en Railway. */
-export async function aplicarMigraciones(url: string, ssl = false): Promise<void> {
+export async function aplicarMigraciones(url: string, tls: Pick<OpcionesBD, 'ssl' | 'ca'> = {}): Promise<void> {
   const carpeta = process.env.MIGRACIONES_DIR ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../drizzle')
-  const conexion = conectarBD(url, { ssl, max: 1 })
+  const conexion = conectarBD(url, { ...tls, max: 1 })
   try {
     await migrate(conexion.db, { migrationsFolder: carpeta })
   } finally {
@@ -21,7 +21,7 @@ if (esPrincipal) {
     console.error('Falta DATABASE_URL')
     process.exit(1)
   }
-  aplicarMigraciones(url, process.env.DATABASE_SSL === 'true')
+  aplicarMigraciones(url, opcionesBDDelEntorno())
     .then(() => {
       console.log('✔ Migraciones aplicadas')
     })

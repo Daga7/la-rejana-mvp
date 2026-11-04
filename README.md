@@ -6,7 +6,7 @@ PWA de domicilios + módulos de operación (cocina, caja, domiciliario y adminis
 - `apps/api` — Node.js + Fastify con arquitectura hexagonal (`domain`, `application`, `ports`, `adapters`).
 - `packages/shared` — esquemas Zod, enums y utilidades compartidas.
 
-Documentos del proyecto: [PLAN.md](PLAN.md) · [PROGRESO.md](PROGRESO.md) · [DECISIONES.md](DECISIONES.md) · [PENDIENTES.md](PENDIENTES.md)
+Documentos del proyecto: **[INFORME.md](INFORME.md)** (estado final) · [PLAN.md](PLAN.md) · [PROGRESO.md](PROGRESO.md) · [DECISIONES.md](DECISIONES.md) · [PENDIENTES.md](PENDIENTES.md)
 
 ## Correr en local
 
@@ -28,6 +28,7 @@ pnpm dev                      # API en :4000 y web en :3000
 | Comando | Qué hace |
 |---|---|
 | `pnpm test` | Pruebas (unitarias + integración contra `DATABASE_URL_TEST`) |
+| `CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e` | Pruebas de punta a punta en el navegador, con la app corriendo (`E2E_URL` si no es `http://localhost:3000`) |
 | `pnpm typecheck` | Verificación de tipos en todos los paquetes |
 | `pnpm build` | Compila API (esbuild) y web (Next standalone opcional) |
 | `pnpm db:generate` | Genera una migración nueva a partir de `schema.ts` |
@@ -53,5 +54,7 @@ Importa el repositorio con *Root Directory* `apps/web` (Vercel detecta pnpm y el
 
 ```bash
 docker build -f apps/api/Dockerfile -t rejana-api .
-docker build -f apps/web/Dockerfile -t rejana-web .
+docker build -f apps/web/Dockerfile --build-arg VERSION_APP=$(git rev-parse --short HEAD) -t rejana-web .
 ```
+
+Las dos imágenes se probaron en modo producción contra la base local (API ~455 MB con salud OK; web ~393 MB sirviendo el menú prerenderizado por el proxy). `VERSION_APP` identifica el despliegue en el service worker; en Railway y Vercel se toma del commit automáticamente.

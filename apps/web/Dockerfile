@@ -15,6 +15,9 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 ARG VERSION_APP
+# Railway pasa el commit como argumento de build solo si el Dockerfile lo declara; next.config lo usa
+# para versionar el service worker (en Vercel llega solo como VERCEL_GIT_COMMIT_SHA).
+ARG RAILWAY_GIT_COMMIT_SHA
 ENV NEXT_OUTPUT=standalone VERSION_APP=${VERSION_APP}
 RUN pnpm --filter @rejana/web build
 

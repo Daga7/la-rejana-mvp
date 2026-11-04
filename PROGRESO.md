@@ -14,7 +14,7 @@
 | 6. Cocina, caja y admin | ✅ Hecha | `feat(operacion): add kitchen, cashier and admin modules` |
 | 7. Buzón de quejas | ✅ Hecha | `feat(buzon): add anonymous staff feedback mailbox` |
 | 8. Asistente de WhatsApp con PDF | ✅ Hecha | `feat(asistente): add whatsapp report assistant with pdf` |
-| Cierre: seguridad, audit, Lighthouse, INFORME | ⏳ Siguiente | — |
+| Cierre: seguridad, audit, Lighthouse, INFORME | ✅ Hecho | `fix(seguridad): pre-hash passwords and harden api caching`, `perf(web): reach lighthouse 90+ on public pages`, `docs: add final report and closing notes` |
 
 ## Fase 1 — qué quedó
 
@@ -79,15 +79,25 @@
 - Web: `/admin/asistente` (probador, estado, descargas).
 - Pruebas: 7 unitarias del intérprete + 11 de integración (firma, lista blanca, idempotencia, voz, aclaración, permisos, PDF válido). **Total 127 en verde.** E2E del probador con descarga del PDF.
 
+## Cierre — qué quedó
+
+- **Seguridad**: contraseñas con HMAC-SHA256 (pimienta) + bcrypt 12 en formato `v2$` (bcrypt ignoraba lo que pasa de 72 bytes) con actualización transparente de los hashes antiguos al ingresar; `Cache-Control: no-store` por defecto en la API; el proxy de la web rechaza `.`/`..`; Zod `jitless` en el navegador (la CSP sin `unsafe-eval` ya no reporta violaciones); la página ya no se recarga sola cuando el service worker se instala por primera vez.
+- **Dependencias**: `pnpm audit --prod` sin vulnerabilidades (2 moderadas solo de desarrollo).
+- **Lighthouse móvil** (build de producción): rendimiento 92–99 y 100 en accesibilidad, buenas prácticas y SEO en las 7 páginas públicas. Para llegar: menú prerenderizado en el servidor, Motion fuera de las pantallas de entrada (animaciones CSS con `usePresencia`), fuentes recortadas, Zod solo donde se valida, enlaces sin prefetch, tarjetas memorizadas, service worker después de `load`, contraste AA y nombres accesibles. Ver D60–D69.
+- **PWA**: instalable sin errores en Chromium; portada y menú precargados para funcionar sin conexión desde la primera visita.
+- **Docker**: imágenes reconstruidas y probadas en modo producción (API ~455 MB, web ~393 MB).
+- **Pruebas**: 130 de la API y 7 e2e en navegador contra el build de producción (la de cocina ahora crea su propio pedido).
+- **Informe final** en [INFORME.md](INFORME.md).
+
 ## Siguiente paso exacto
 
-**Cierre.** 1) Revisión de seguridad con la lista de OWASP ASVS L2 / Top 10 sobre el código. 2) `pnpm audit --prod` sin altas/críticas. 3) Lighthouse móvil sobre el build de producción (`pnpm --filter @rejana/web build && start`) y corregir lo que baje de 90. 4) Reconstruir las imágenes Docker. 5) Escribir `INFORME.md` y actualizar `README.md`, `PENDIENTES.md` y este archivo.
+**El MVP está cerrado.** Cuando Daniel cree el repositorio en GitHub y la cuenta de Railway (y Vercel, si la quiere): conectar el remoto, hacer el primer push (solo cuando él lo pida) y desplegar según el README; luego crear el primer administrador con `node dist/crear-admin.js`. Después: MFA para el personal y el administrador, monitoreo y, más adelante, el módulo del mesero (ver PENDIENTES.md).
 
 ## Cómo verificar lo hecho
 
 ```bash
 pnpm db:up && pnpm db:reset
 pnpm --filter @rejana/api test     # pruebas unitarias + integración
-CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e   # con la app corriendo (pnpm dev)
+CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e   # con la app corriendo (pnpm dev; o E2E_URL=… contra un build)
 pnpm dev                           # http://localhost:3000 y http://localhost:4000/api/salud
 ```

@@ -119,7 +119,7 @@ export async function crearServidor({ env, c, log }: OpcionesServidor): Promise<
     }
   })
 
-  // Nada de la API se guarda en cachés del navegador o intermedias salvo que la ruta lo pida (ASVS 8.2.1).
+  // Nada de la API se guarda en cachés del navegador o intermedias salvo que la ruta lo pida (ASVS: datos en el cliente).
   app.addHook('onSend', async (_req, reply, cuerpo) => {
     if (!reply.hasHeader('cache-control')) reply.header('cache-control', 'no-store')
     return cuerpo

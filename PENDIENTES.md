@@ -4,7 +4,7 @@ Integraciones que ya tienen adaptador real **y** adaptador de desarrollo. Mientr
 
 | Integración | Qué falta (lo da Daniel) | Variable(s) | Mientras tanto |
 |---|---|---|---|
-| Despliegue | Cuenta de Railway (y opcionalmente Vercel) y un repositorio en GitHub para conectar | — | Todo corre en local con Docker Compose; imágenes Docker probadas |
+| Despliegue | Cuenta de Railway (y opcionalmente Vercel) y un repositorio en GitHub para conectar | — | Todo corre en local con Docker Compose; imágenes Docker reconstruidas y probadas en modo producción al cierre |
 | Correo | Proveedor transaccional (Resend o un SMTP como Brevo/SES) y dominio verificado para el remitente | `EMAIL_PROVEEDOR`, `RESEND_API_KEY` o `SMTP_*`, `EMAIL_REMITENTE` | Mailpit en local (http://localhost:8025) o consola |
 | Google | Proyecto en Google Cloud con OAuth (cliente web) y la URL de retorno `https://<web>/api/auth/oauth/google/callback` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Selector OAuth simulado (`OAUTH_MOCK=true`, solo desarrollo) |
 | Apple | Cuenta de Apple Developer (USD 99/año): Services ID, Team ID, Key ID y llave `.p8`; dominio verificado | `APPLE_*` | Selector OAuth simulado |
@@ -23,5 +23,10 @@ Integraciones que ya tienen adaptador real **y** adaptador de desarrollo. Mientr
 
 ## Técnicos
 
+- **MFA para el personal y el administrador** (TOTP o passkeys): lo pide OWASP ASVS 5.0 nivel 2 y no está en el MVP. Es lo primero que haría después del despliegue.
+- **Monitoreo**: errores y caídas con avisos (Sentry, Better Stack u otro). Hoy solo hay logs estructurados y auditoría.
 - Varias réplicas de la API requieren Redis para rate limiting y Socket.IO (hoy, un solo proceso).
+- Repetir Lighthouse con la URL desplegada (las mediciones del cierre son en local).
+- **Módulo del mesero**: después del MVP (hoy solo existe el rol).
 - Pasarela de tarjetas (Wompi): fuera del MVP; el puerto `PasarelaPagos` está definido.
+- En desarrollo, `pnpm audit` reporta 2 vulnerabilidades moderadas que no llegan a producción (`esbuild` vía `drizzle-kit` y `minimatch` vía ESLint); se resuelven cuando esas herramientas actualicen sus dependencias.

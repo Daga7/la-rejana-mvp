@@ -392,6 +392,20 @@
     }
   }
 
+  /* Gráficas: paleta validada (scripts de la skill dataviz) sobre la superficie crema. */
+  .viz {
+    --viz-superficie: #fbf4e6;
+    --viz-texto: #14121f;
+    --viz-texto-2: #4a4658;
+    --viz-rejilla: #e8ddc6;
+    --serie-1: #2156d8;
+    --serie-2: #e8237d;
+    --serie-3: #c95f06;
+    --estado-bien: #0ca30c;
+    --estado-critico: #d03b3b;
+    --estado-alerta: #fab219;
+  }
+
   /* Entrada animada solo con CSS: el contenido es visible aunque el JS tarde en cargar. */
   .aparecer {
     animation: subir 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;

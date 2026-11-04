@@ -77,3 +77,13 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D44 | ETA por parada recalculado con el proveedor de mapas cada 30 s y descontando el tiempo transcurrido entre cálculos. | Evita llamadas excesivas a servicios de pago. |
 | D45 | Un domiciliario tiene como máximo un recorrido activo (índice único parcial); al entregar el último pedido el recorrido termina solo. Waze se abre con la siguiente parada (Waze no admite varias); Google Maps con toda la ruta. | Reglas simples para la operación diaria. |
 | D46 | La pantalla del domiciliario pide **Wake Lock** (pantalla encendida) durante el recorrido. | Si el teléfono se bloquea, el navegador deja de enviar la ubicación. |
+
+## Cocina, caja y administración (fase 6)
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D47 | Gráficas propias en SVG (sin librería), siguiendo la guía de visualización: paleta de **colores de marca validada con el script** (azul `#2156d8`, rosa `#e8237d`, naranja `#c95f06`: pasan todas las verificaciones, incluso por todos los pares, sobre la superficie crema), color por entidad en orden fijo, un solo eje, trazo de 2 px, leyenda + etiquetas directas, crosshair con tooltip de todas las series, navegación con teclado y **vista de tabla** en cada gráfica. Barras de una sola serie en un solo tono. Alertas con la paleta de estado reservada + ícono + texto. | Gráficas legibles para daltónicos, accesibles y livianas (sin dependencias). Las tarjetas son crema en toda la app, por eso solo hay modo claro. |
+| D48 | «Ventas» = total de los pedidos **no cancelados** por fecha de creación (hora de Bogotá), incluye el domicilio. La variación del mes compara con **los mismos días** del mes anterior. | Comparación justa a mitad de mes; el día en curso se señala como parcial. |
+| D49 | El admin opera cocina y caja de cualquier sede (selector recordado en el dispositivo); el resto del personal, solo la suya. | Cubre el caso real del dueño que supervisa ambas sedes. |
+| D50 | Al cambiar rol, sede o estado de un empleado se **cierran sus sesiones** al instante; siempre queda un admin activo; nadie se desactiva a sí mismo; el asistente de WhatsApp solo se habilita a admins con celular. | Los permisos nuevos aplican de inmediato y no hay forma de quedarse sin administrador. |
+| D51 | La cocina usa actualización **optimista** (la tarjeta se mueve al tocar y vuelve si la API falla) y campana generada con Web Audio, que el navegador solo permite tras un toque («Activar sonido»). | Respuesta inmediata en la tablet de cocina sin archivos de audio. |

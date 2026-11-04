@@ -2,7 +2,9 @@ import { createHmac } from 'node:crypto'
 import { jwtVerify, SignJWT } from 'jose'
 import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
+import { crearCasosAdmin } from './application/admin'
 import { crearCasosAuth } from './application/auth'
+import { crearCasosReportes } from './application/reportes'
 import { crearCasosDomicilios, type CasosDomicilios } from './application/domicilios'
 import { crearCasosInventario } from './application/inventario'
 import { crearCasosMenu } from './application/menu'
@@ -67,6 +69,8 @@ export interface Casos {
   pedidos: ReturnType<typeof crearCasosPedidos>
   push: ReturnType<typeof crearCasosPush>
   domicilios: CasosDomicilios
+  reportes: ReturnType<typeof crearCasosReportes>
+  admin: ReturnType<typeof crearCasosAdmin>
 }
 
 export interface Sobrescrituras {
@@ -154,6 +158,8 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     pedidos,
     push: crearCasosPush({ uow, push, tokens, pedidos }),
     domicilios,
+    reportes: crearCasosReportes({ uow, reloj }),
+    admin: crearCasosAdmin({ uow, reloj }),
   }
 
   return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }

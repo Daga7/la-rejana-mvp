@@ -4,6 +4,7 @@ import type { Contenedor, Sobrescrituras } from './contenedor'
 import type { Logger } from './ports/servicios'
 import { crearLogger } from './adapters/http/logger'
 import { crearServidor } from './adapters/http/servidor'
+import { rutasAdmin } from './adapters/http/rutas/admin'
 import { rutasAuth } from './adapters/http/rutas/auth'
 import { rutasMenu } from './adapters/http/rutas/menu'
 import { manejadorUbicacion, rutasDomicilios } from './adapters/http/rutas/domicilios'
@@ -33,6 +34,7 @@ export async function crearApp(
   rutasMenu(app, c)
   rutasPedidos(app, c)
   rutasDomicilios(app, c)
+  rutasAdmin(app, c)
 
   const io = crearServidorTiempoReal(app, { origenes: origenesPermitidos(env), tokens: c.tokens, log, manejadores: [manejadorUbicacion(c)] })
   c.eventos.conectar(io)

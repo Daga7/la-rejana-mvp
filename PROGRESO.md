@@ -11,8 +11,8 @@
 | 3. Menú, recetas e inventario | ✅ Hecha | `feat(menu): add per-branch menu, recipes and inventory` |
 | 4. Pedidos a domicilio, estados y push | ✅ Hecha | `feat(pedidos): add delivery orders, push and live tracking` |
 | 5. Domiciliario: tiempo real y ruta óptima | ✅ Hecha | `feat(domicilios): add optimal routes and live courier tracking` |
-| 6. Cocina, caja y admin | ⏳ Siguiente | — |
-| 7. Buzón de quejas | Pendiente | — |
+| 6. Cocina, caja y admin | ✅ Hecha | `feat(operacion): add kitchen, cashier and admin modules` |
+| 7. Buzón de quejas | ⏳ Siguiente | — |
 | 8. Asistente de WhatsApp con PDF | Pendiente | — |
 | Cierre: seguridad, audit, Lighthouse, INFORME | Pendiente | — |
 
@@ -59,9 +59,15 @@
 - Web: marco común del personal (`componentes/personal/MarcoPersonal.tsx`) y `/domiciliario` (listos para salir / en cocina, planificador, recorrido con GPS `watchPosition`, Wake Lock, cobro y cambio, Maps/Waze, entregar).
 - Pruebas: 5 de integración con Socket.IO real (una salida vs. dividir, permisos, privacidad de la ubicación, cierre del recorrido). **Total 95 en verde.** E2E con dos navegadores: el cliente ve al domiciliario acercarse con ETA y la entrega en vivo.
 
+## Fase 6 — qué quedó
+
+- API: `application/reportes.ts` (**catálogo cerrado**: ventas por periodo y sede con serie diaria, productos más vendidos, inventario por insumo y sede con filtro sin tildes; tablero del admin) y `application/admin.ts` (empleados, cambio de rol/sede/estado/WhatsApp con cierre de sesiones y auditoría, auditoría paginada). Rutas `adapters/http/rutas/admin.ts`.
+- Web: `/cocina` (tres columnas en vivo, cambio de estado con un toque optimista, minutos con color, campana), `/caja` (pestañas por etapa con contadores, asignar domiciliario, despachar, entregar, cobrar con cambio, cerrar, cancelar con reposición opcional), `/admin` (tablero con KPIs, líneas por sede, barras de lo más vendido, resumen por sede y alertas), `/admin/inventario`, `/admin/menu` (precio y disponibilidad por sede, editor de recetas, productos y categorías), `/admin/sedes`, `/admin/empleados` (invitar, pendientes, editar) y `/admin/auditoria`. Componentes de gráficas en `componentes/graficas/`.
+- Pruebas: 9 de integración (reportes cuadran con la BD, filtros, permisos, empleados). **Total 104 en verde.** E2E: tablero + inventario (admin), cocina y caja en navegador.
+
 ## Siguiente paso exacto
 
-**Fase 6 — Cocina, caja y admin.** API: `application/admin.ts` (empleados: listar, cambiar rol/sede/activo/WhatsApp con revocación de sesiones y auditoría; auditoría paginada; tablero de ventas del día/mes por sede con `RepoReportes`) y `application/reportes.ts` (catálogo cerrado: ventas por periodo y sede, productos más vendidos, inventario por insumo y sede; lo reutiliza la fase 8). Web: `/cocina` (tablero por estado en tiempo real, cambio de estado con un toque, sonido de pedido nuevo), `/caja` (pedidos del día, asignar domiciliario, cobrar con cambio, cancelar, cerrar), `/admin` (tablero con gráficas, sedes, catálogo/recetas/menú por sede, insumos e inventario con alertas, empleados e invitaciones, auditoría). Leer la skill `dataviz` antes de las gráficas.
+**Fase 7 — Buzón de quejas y sugerencias.** API `application/buzon.ts`: `enviar` (cualquier empleado; si es anónimo NO se guardan autor, sede ni hora —solo la fecha—, sin auditoría ni logs con identidad, y con límite de envíos en memoria), `listar` y `cambiarEstado` (solo admin, auditado). Rutas `POST /api/buzon`, `GET /api/admin/buzon`, `PATCH /api/admin/buzon/:id`. Pruebas que verifiquen en la BD que un mensaje anónimo no tiene ningún dato del autor. Web: `/buzon` (formulario con interruptor de anonimato y explicación clara) y `/admin/buzon` (lista con filtros por estado).
 
 ## Cómo verificar lo hecho
 

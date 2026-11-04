@@ -38,3 +38,17 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D20 | Railway con `railway.json` por servicio (Dockerfile, `preDeployCommand` de migraciones y health check). La web también puede ir a Vercel (raíz `apps/web`). | Lo pide el encargo; ambas rutas quedan documentadas. |
 | D21 | El seed (con contraseñas conocidas) se niega a correr en producción. El primer admin de producción se crea con `crear-admin`, que emite una **invitación** de un solo uso. | No existen credenciales por defecto en producción. |
 | D22 | Puertos locales 5433 (PostgreSQL) y 1025/8025 (Mailpit). | En el equipo ya corre otro PostgreSQL (`rejana-db`) en el 5432 de un intento anterior; no se toca. |
+
+## Autenticación (fase 2)
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D23 | La cuenta de cliente **solo se crea al verificar el código**; el registro pendiente (nombre + hash de la clave) vive junto al código, que queda **ligado al navegador** que lo pidió (cookie httpOnly). | Evita que alguien «aparte» un correo ajeno o gane una carrera fijando su contraseña en una cuenta que luego verifica el dueño. |
+| D24 | Contraseñas según **OWASP ASVS 5.0 §6.2**: 8–128 caracteres, sin reglas de composición, lista local de claves comunes + consulta a **Have I Been Pwned** con k-anonimato (si el servicio falla, no bloquea). | Es lo que pide ASVS hoy; las reglas de composición empeoran la usabilidad sin mejorar la seguridad. |
+| D25 | Token de acceso JWT de 15 min ligado a una **sesión revocable que se verifica en la BD en cada petición**; refresh opaco **rotativo** con detección de reuso (si reaparece un token usado, se revoca la sesión; 30 s de gracia para pestañas simultáneas). Vida por rol: cliente 30 días (14 de inactividad), personal 7 días (24 h), admin 7 días (12 h). | Revocación inmediata al salir, cambiar clave o desactivar a un empleado; el personal maneja datos más sensibles. |
+| D26 | Registro y recuperación responden **igual** exista o no el correo; los correos salen en segundo plano y el login con correo inexistente compara contra un hash ficticio. | Impide enumerar cuentas por la respuesta o por el tiempo. |
+| D27 | CSRF: token en cookie httpOnly entregado por `GET /api/auth/csrf` (la web lo guarda en memoria y lo envía en `x-csrf-token`) + verificación de `Origin`/`Sec-Fetch-Site`; cookies `SameSite=Strict`. | Defensa en profundidad sin exponer el token a scripts vía `document.cookie`. |
+| D28 | Enlaces de invitación con el token en el **fragmento** (`/invitacion#t=…`): no llega a servidores, logs ni `Referer`. 72 h, un solo uso y solo para ese correo (con Google/Apple se exige el mismo correo verificado). | Cumple el encargo y no deja el secreto en ningún log. |
+| D29 | Con Google/Apple, la cuenta nueva acepta el aviso de privacidad por **conducta inequívoca** (texto visible junto al botón; Decreto 1377 de 2013, art. 7) y se vincula por correo verificado del proveedor. | Flujo de un toque sin saltarse la autorización de la Ley 1581. |
+| D30 | No se puede invitar como empleado un correo que ya tiene cuenta (de cliente u otra). | Simplicidad del MVP; el admin puede usar otro correo o cambiar el rol de un empleado existente. |
+| D31 | Proveedor OAuth **simulado** (pantalla propia) solo con `OAUTH_MOCK=true` y nunca en producción (la API no arranca si se intenta). | Probar el flujo completo (state, nonce, callback, invitaciones) sin credenciales. |

@@ -147,6 +147,10 @@ export const codigosVerificacion = pgTable(
     email: text('email').notNull(),
     proposito: text('proposito', { enum: ['verificar_correo', 'recuperar_clave'] }).notNull(),
     codigoHash: text('codigo_hash').notNull(),
+    /** Registro pendiente (nombre, hash de clave): la cuenta solo se crea al verificar el código. */
+    datosPendientes: jsonb('datos_pendientes').$type<{ nombre: string; passwordHash: string; aceptoPrivacidadEn: string }>(),
+    /** Huella del navegador que pidió el código: el código solo sirve en ese navegador. */
+    vinculoHash: text('vinculo_hash'),
     intentos: integer('intentos').notNull().default(0),
     expiraEn: ts('expira_en').notNull(),
     consumidoEn: ts('consumido_en'),

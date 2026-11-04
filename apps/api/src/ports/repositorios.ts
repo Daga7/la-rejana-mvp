@@ -119,11 +119,19 @@ export interface RepoSesiones {
 
 export type PropositoCodigo = 'verificar_correo' | 'recuperar_clave'
 
+export interface DatosRegistroPendiente {
+  nombre: string
+  passwordHash: string
+  aceptoPrivacidadEn: string
+}
+
 export interface CodigoVerificacion {
   id: string
   email: string
   proposito: PropositoCodigo
   codigoHash: string
+  datosPendientes: DatosRegistroPendiente | null
+  vinculoHash: string | null
   intentos: number
   expiraEn: Date
   consumidoEn: Date | null
@@ -134,7 +142,16 @@ export interface RepoCodigos {
   vigente(email: string, proposito: PropositoCodigo, ahora: Date): Promise<CodigoVerificacion | null>
   ultimo(email: string, proposito: PropositoCodigo): Promise<CodigoVerificacion | null>
   contarDesde(email: string, proposito: PropositoCodigo, desde: Date): Promise<number>
-  crear(datos: { email: string; proposito: PropositoCodigo; codigoHash: string; expiraEn: Date }): Promise<CodigoVerificacion>
+  crear(datos: {
+    email: string
+    proposito: PropositoCodigo
+    codigoHash: string
+    /** Lo fija el caso de uso con su reloj (las reglas de espera y conteo dependen de él). */
+    creadoEn: Date
+    expiraEn: Date
+    datosPendientes?: DatosRegistroPendiente | null
+    vinculoHash?: string | null
+  }): Promise<CodigoVerificacion>
   invalidar(email: string, proposito: PropositoCodigo, ahora: Date): Promise<void>
   sumarIntento(id: string): Promise<number>
   consumir(id: string, ahora: Date): Promise<boolean>

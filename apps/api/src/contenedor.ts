@@ -1,4 +1,9 @@
+import { createHmac } from 'node:crypto'
+import { jwtVerify, SignJWT } from 'jose'
+import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
+import { crearCasosAuth } from './application/auth'
+import { proveedorApple, proveedorGoogle, proveedorSimulado } from './adapters/oauth/proveedores'
 import { conectarBD, type ConexionBD } from './adapters/db/cliente'
 import { unidadDeTrabajoPostgres } from './adapters/db/repos'
 import { correoConsola, correoResend, correoSmtp } from './adapters/correo/correo'
@@ -18,6 +23,8 @@ import type {
   Logger,
   MatrizTiempos,
   Notificador,
+  PerfilOAuth,
+  ProveedorIdentidad,
   Reloj,
   ServicioCorreo,
   VerificadorClavesFiltradas,
@@ -42,6 +49,14 @@ export interface Contenedor {
   eventos: PublicadorSocketIo
   mapas: MatrizTiempos
   geocoder: Geocodificador
+  proveedores: Partial<Record<ProveedorOAuth, ProveedorIdentidad>>
+  /** Solo con OAUTH_MOCK: firma el "código" del proveedor simulado. */
+  firmarCodigoSimulado: ((p: PerfilOAuth & { nonce: string }) => Promise<string>) | null
+  casos: Casos
+}
+
+export interface Casos {
+  auth: ReturnType<typeof crearCasosAuth>
 }
 
 export interface Sobrescrituras {
@@ -83,20 +98,32 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
   const geocoder =
     env.GEOCODER === 'google' ? geocoderGoogle(env.GOOGLE_MAPS_API_KEY!, log) : env.GEOCODER === 'nominatim' ? geocoderNominatim(env.NOMINATIM_URL, log) : geocoderNinguno
 
-  return {
-    env,
-    conexion,
-    uow,
-    log,
-    reloj: s.reloj ?? { ahora: () => new Date() },
-    cripto: criptografiaNode(env.TOKENS_PEPPER),
-    hasher: s.hasher ?? hasherBcrypt(12),
-    filtradas: s.filtradas ?? verificadorHibp(log, env.HIBP_HABILITADO && env.NODE_ENV !== 'test'),
-    tokens: emisorTokensJose(env.JWT_SECRET),
-    correo,
-    push,
-    eventos: new PublicadorSocketIo(),
-    mapas,
-    geocoder,
+  // --- Identidad externa: reales si hay credenciales; simulados solo en desarrollo ---------------
+  const proveedores: Partial<Record<ProveedorOAuth, ProveedorIdentidad>> = {}
+  let firmarCodigoSimulado: Contenedor['firmarCodigoSimulado'] = null
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) proveedores.google = proveedorGoogle(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
+  if (env.APPLE_CLIENT_ID && env.APPLE_TEAM_ID && env.APPLE_KEY_ID && env.APPLE_PRIVATE_KEY) {
+    proveedores.apple = proveedorApple({ clientId: env.APPLE_CLIENT_ID, teamId: env.APPLE_TEAM_ID, keyId: env.APPLE_KEY_ID, llavePrivada: env.APPLE_PRIVATE_KEY })
   }
+  if (env.OAUTH_MOCK && env.NODE_ENV !== 'production') {
+    const llave = new Uint8Array(createHmac('sha256', env.JWT_SECRET).update('rejana:oauth-simulado').digest())
+    const firmar = (p: PerfilOAuth & { nonce: string }) =>
+      new SignJWT({ ...p }).setProtectedHeader({ alg: 'HS256' }).setAudience('oauth-simulado').setIssuedAt().setExpirationTime('2m').sign(llave)
+    const verificar = async (code: string) => (await jwtVerify(code, llave, { audience: 'oauth-simulado', algorithms: ['HS256'] })).payload as unknown as PerfilOAuth & { nonce: string }
+    firmarCodigoSimulado = firmar
+    for (const p of ['google', 'apple'] as const) proveedores[p] ??= proveedorSimulado(p, firmar, verificar, env.WEB_ORIGIN)
+  }
+
+  const reloj = s.reloj ?? { ahora: () => new Date() }
+  const cripto = criptografiaNode(env.TOKENS_PEPPER)
+  const hasher = s.hasher ?? hasherBcrypt(12)
+  const filtradas = s.filtradas ?? verificadorHibp(log, env.HIBP_HABILITADO && env.NODE_ENV !== 'test')
+  const tokens = emisorTokensJose(env.JWT_SECRET)
+  const eventos = new PublicadorSocketIo()
+
+  const casos: Casos = {
+    auth: crearCasosAuth({ uow, reloj, cripto, hasher, filtradas, tokens, correo, log, webOrigin: env.WEB_ORIGIN, proveedores }),
+  }
+
+  return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }
 }

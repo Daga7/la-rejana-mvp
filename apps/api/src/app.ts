@@ -4,6 +4,7 @@ import type { Contenedor, Sobrescrituras } from './contenedor'
 import type { Logger } from './ports/servicios'
 import { crearLogger } from './adapters/http/logger'
 import { crearServidor } from './adapters/http/servidor'
+import { rutasAuth } from './adapters/http/rutas/auth'
 import { rutasSalud } from './adapters/http/rutas/salud'
 
 export interface AppLista {
@@ -23,6 +24,7 @@ export async function crearApp(
   const app = await crearServidor({ env, c, log })
 
   rutasSalud(app, c)
+  rutasAuth(app, c)
 
   await app.ready()
   return {

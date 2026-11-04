@@ -556,6 +556,31 @@ export interface RepoMesas {
   registrarPago(datos: Omit<PagoRegistro, 'id' | 'creadoEn'> & { cuentaId: string; registradoPor: string }): Promise<void>
 }
 
+// --- Turnos -----------------------------------------------------------------------------
+
+export interface TurnoRegistro {
+  id: string
+  usuarioId: string
+  usuarioNombre: string
+  rol: Rol
+  sedeId: string
+  sedeNombre: string
+  entradaEn: Date
+  salidaEn: Date | null
+  cerradoPor: string | null
+  nota: string | null
+}
+
+export interface RepoTurnos {
+  abiertoDe(usuarioId: string): Promise<TurnoRegistro | null>
+  porId(id: string, opciones?: { bloquear?: boolean }): Promise<TurnoRegistro | null>
+  /** Falla con violación de unicidad (23505) si la persona ya tiene un turno abierto. */
+  abrir(datos: { usuarioId: string; sedeId: string; entradaEn: Date }): Promise<TurnoRegistro>
+  cerrar(id: string, datos: { salidaEn: Date; cerradoPor: string | null; nota: string | null }): Promise<void>
+  /** Turnos cuya entrada cae en el rango [desde, hasta). */
+  listar(filtro: { desde: Date; hasta: Date; sedeId?: string; usuarioId?: string }): Promise<TurnoRegistro[]>
+}
+
 export interface Recorrido {
   id: string
   sedeId: string
@@ -682,6 +707,7 @@ export interface Repositorios {
   inventario: RepoInventario
   pedidos: RepoPedidos
   mesas: RepoMesas
+  turnos: RepoTurnos
   recorridos: RepoRecorridos
   suscripciones: RepoSuscripciones
   buzon: RepoBuzon

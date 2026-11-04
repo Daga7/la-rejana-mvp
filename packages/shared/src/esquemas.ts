@@ -204,6 +204,21 @@ export const cobrarCuentaSchema = z.object({
 })
 export type CobrarCuentaInput = z.infer<typeof cobrarCuentaSchema>
 
+// ---------------------------------------------------------------------------
+// Turnos del personal
+// ---------------------------------------------------------------------------
+
+export const filtroTurnosSchema = z.object({
+  sedeId: id.optional(),
+  periodo: z.enum(PERIODOS_REPORTE).default('esta_semana'),
+})
+
+/** El admin cierra un turno que el empleado olvidó cerrar, con la hora real de salida. */
+export const cerrarTurnoSchema = z.object({
+  salidaEn: z.iso.datetime({ offset: true, error: 'Escribe la hora de salida' }),
+  nota: z.string().trim().min(3, 'Cuéntanos por qué lo cierras tú').max(200),
+})
+
 export const suscripcionPushSchema = z.object({
   endpoint: z.url({ protocol: /^https$/, error: 'Suscripción inválida' }).max(1000),
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(4).max(100) }),

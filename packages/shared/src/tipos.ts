@@ -307,3 +307,43 @@ export interface SalonDTO {
   /** Rondas listas en la cocina, de la más antigua a la más nueva. */
   paraServir: PedidoMesaDTO[]
 }
+
+// --- Turnos ------------------------------------------------------------------------------
+
+export interface TurnoDTO {
+  id: string
+  usuarioId: string
+  usuarioNombre: string
+  rol: Rol
+  sedeId: string
+  sedeNombre: string
+  entradaEn: string
+  salidaEn: string | null
+  /** Minutos trabajados (si sigue abierto, hasta ahora). */
+  minutos: number
+  abierto: boolean
+  /** true si lo cerró el administrador porque el empleado olvidó marcar la salida. */
+  cerradoPorAdmin: boolean
+  nota: string | null
+  /** Turno de más de 16 horas: probablemente olvidaron marcar la salida. */
+  revisar: boolean
+}
+
+export interface ResumenTurnosDTO {
+  usuarioId: string
+  usuarioNombre: string
+  rol: Rol
+  sedeNombre: string
+  turnos: number
+  minutos: number
+  abiertos: number
+}
+
+export interface ReporteTurnosDTO {
+  etiqueta: string
+  desde: string
+  hasta: string
+  turnos: TurnoDTO[]
+  resumen: ResumenTurnosDTO[]
+}
+

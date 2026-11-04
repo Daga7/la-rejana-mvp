@@ -555,6 +555,35 @@ export const pedidoSuscripciones = pgTable(
 // Operación y gobierno
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Turnos del personal (hora de entrada y salida; la hora la pone el servidor)
+// ---------------------------------------------------------------------------
+
+export const turnos = pgTable(
+  'turnos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    usuarioId: uuid('usuario_id')
+      .notNull()
+      .references(() => usuarios.id, { onDelete: 'restrict' }),
+    sedeId: uuid('sede_id')
+      .notNull()
+      .references(() => sedes.id, { onDelete: 'restrict' }),
+    entradaEn: timestamp('entrada_en', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    salidaEn: ts('salida_en'),
+    // Si el empleado olvidó marcar la salida, la pone el admin (queda quién y por qué).
+    cerradoPor: uuid('cerrado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+    nota: text('nota'),
+  },
+  (t) => [
+    // A lo sumo un turno abierto por persona.
+    uniqueIndex('turnos_abierto_uq').on(t.usuarioId).where(sql`${t.salidaEn} is null`),
+    index('turnos_sede_entrada_idx').on(t.sedeId, t.entradaEn),
+    index('turnos_usuario_entrada_idx').on(t.usuarioId, t.entradaEn),
+    check('turnos_salida_ck', sql`${t.salidaEn} is null or ${t.salidaEn} > ${t.entradaEn}`),
+  ],
+)
+
 export const buzonMensajes = pgTable(
   'buzon_mensajes',
   {

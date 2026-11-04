@@ -12,6 +12,7 @@ import { rutasMenu } from './adapters/http/rutas/menu'
 import { manejadorUbicacion, rutasDomicilios } from './adapters/http/rutas/domicilios'
 import { rutasMesas } from './adapters/http/rutas/mesas'
 import { rutasPedidos } from './adapters/http/rutas/pedidos'
+import { rutasTurnos } from './adapters/http/rutas/turnos'
 import { rutasSalud } from './adapters/http/rutas/salud'
 import { crearServidorTiempoReal } from './adapters/realtime/servidor'
 import { origenesPermitidos } from './config/env'
@@ -37,6 +38,7 @@ export async function crearApp(
   rutasMenu(app, c)
   rutasPedidos(app, c)
   rutasMesas(app, c)
+  rutasTurnos(app, c)
   rutasDomicilios(app, c)
   rutasAdmin(app, c)
   rutasBuzon(app, c)

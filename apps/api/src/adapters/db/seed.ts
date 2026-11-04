@@ -181,8 +181,8 @@ export async function sembrar(
     historicoDias?: number
     silencioso?: boolean
     costoHash?: number
-    /** Mesas ocupadas en Villaluz para la demo (las pruebas lo desactivan para partir del inventario inicial). */
-    cuentasDemo?: boolean
+    /** Operación de ejemplo (mesas ocupadas, turnos de la semana, pasaportes). Las pruebas lo desactivan para partir de cero. */
+    datosDemo?: boolean
   },
 ) {
   // La pimienta debe ser la misma TOKENS_PEPPER de la API: con otra, las contraseñas demo no servirían.
@@ -429,7 +429,7 @@ export async function sembrar(
     log('✔ Mesas del salón en las dos sedes')
 
     // --- Mesas ocupadas en Villaluz (rondas que descuentan inventario de verdad) -------------
-    if (opciones.cuentasDemo !== false) {
+    if (opciones.datosDemo !== false) {
       const cuentasDemo: { mesa: number; personas: number; minutos: number; pidioCuenta?: number; rondas: { estado: 'entregado' | 'en_preparacion' | 'listo'; minutos: number; productos: [string, number, string?][] }[] }[] = [
         {
           mesa: 2,
@@ -483,6 +483,31 @@ export async function sembrar(
         }
       }
       log(`✔ ${cuentasDemo.length} mesas ocupadas en Villaluz`)
+    }
+
+    // --- Turnos de la última semana (para el reporte de horas del admin) ----------------------
+    if (opciones.datosDemo !== false) {
+      const personal = await tx
+        .select({ id: t.usuarios.id, sedeId: t.usuarios.sedeId, rol: t.usuarios.rol })
+        .from(t.usuarios)
+        .where(sql`${t.usuarios.rol} in ('mesero','cocina','caja','domiciliario') and ${t.usuarios.sedeId} is not null`)
+      const filas: (typeof t.turnos.$inferInsert)[] = []
+      const hoyBogota = new Date(ahora.getTime() - 5 * 3_600_000).toISOString().slice(0, 10)
+      for (let dias = 7; dias >= 1; dias--) {
+        const dia = new Date(`${hoyBogota}T12:00:00Z`)
+        dia.setUTCDate(dia.getUTCDate() - dias)
+        const fecha = dia.toISOString().slice(0, 10)
+        for (const p of personal) {
+          if (R.next() < 0.15) continue // descanso
+          const entradaMin = 11 * 60 + 30 + R.int(0, 40) // 11:30 a 12:10
+          const duracion = 7 * 60 + R.int(0, 150) // 7 a 9:30 horas
+          const entrada = new Date(`${fecha}T00:00:00-05:00`)
+          entrada.setTime(entrada.getTime() + entradaMin * 60_000)
+          filas.push({ usuarioId: p.id, sedeId: p.sedeId!, entradaEn: entrada, salidaEn: new Date(entrada.getTime() + duracion * 60_000), cerradoPor: p.id })
+        }
+      }
+      if (filas.length) await tx.insert(t.turnos).values(filas)
+      log(`✔ ${filas.length} turnos de la última semana`)
     }
 
     await repos.auditoria.registrar({ actorId: admin, actorRol: 'admin', accion: 'seed', entidad: 'sistema', entidadId: null, datos: { nota: 'Datos de prueba cargados' } })

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
 import { ProveedorMovimiento } from '@/componentes/ProveedorMovimiento'
+import { BotonTurno } from './BotonTurno'
 import { RequiereSesion } from '@/componentes/RequiereSesion'
 import { obtener } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
@@ -64,6 +65,7 @@ function Barra({ titulo }: { titulo: string }) {
             </Link>
           </nav>
         )}
+        {usuario.rol !== 'admin' && <BotonTurno />}
         {usuario.rol !== 'admin' && (
           <Link href="/buzon" className="btn btn-fantasma btn-sm text-white" aria-label="Buzón de quejas y sugerencias">
             <MessageSquareHeart size={16} aria-hidden /> <span className="hidden sm:inline">Buzón</span>

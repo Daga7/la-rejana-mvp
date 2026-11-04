@@ -5,6 +5,7 @@ import { repoCatalogo, repoInventario, repoSedes } from './catalogo'
 import { repoAuditoria, repoBuzon, repoReportes, repoWhatsapp } from './gobierno'
 import { repoMesas } from './mesas'
 import { repoPedidos, repoRecorridos, repoSuscripciones } from './pedidos'
+import { repoTurnos } from './turnos'
 
 export function crearRepositorios(db: Ejecutor): Repositorios {
   return {
@@ -19,6 +20,7 @@ export function crearRepositorios(db: Ejecutor): Repositorios {
     inventario: repoInventario(db),
     pedidos: repoPedidos(db),
     mesas: repoMesas(db),
+    turnos: repoTurnos(db),
     recorridos: repoRecorridos(db),
     suscripciones: repoSuscripciones(db),
     buzon: repoBuzon(db),

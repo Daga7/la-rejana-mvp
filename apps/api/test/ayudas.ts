@@ -99,7 +99,7 @@ export async function levantar(opciones: { sembrar?: boolean; env?: Partial<Reco
     },
   })
   await limpiar(c)
-  if (opciones.sembrar !== false) await sembrar(c.conexion.db, { pimienta: env.TOKENS_PEPPER, historicoDias: 2, silencioso: true, costoHash: 4, cuentasDemo: false })
+  if (opciones.sembrar !== false) await sembrar(c.conexion.db, { pimienta: env.TOKENS_PEPPER, historicoDias: 2, silencioso: true, costoHash: 4, datosDemo: false })
   return { app, c, correos, whatsapp, pushes, reloj, cerrar }
 }
 

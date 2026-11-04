@@ -4,4 +4,4 @@ import { z } from 'zod'
 // (lo prueba al crear cada esquema de objeto y el navegador lo reporta como violación de la CSP).
 // Debe evaluarse antes que cualquier esquema: por eso es la primera importación de esquemas.ts
 // (y figura en "sideEffects" del package.json para que el empaquetador no la descarte).
-if (typeof window !== 'undefined') z.config({ jitless: true })
+if (typeof (globalThis as { window?: unknown }).window !== 'undefined') z.config({ jitless: true })

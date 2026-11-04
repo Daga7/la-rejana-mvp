@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { api } from './api'
 import { useConfigPublica } from './config-publica'
@@ -15,6 +15,7 @@ type Manejadores = Record<string, (datos: any) => void>
 export function useTiempoReal(opciones: { pedidoId?: string; tokenSeguimiento?: string | null; activo?: boolean }, manejadores: Manejadores) {
   const { tiempoRealUrl } = useConfigPublica()
   const [conectado, setConectado] = useState(false)
+  const refSocket = useRef<Socket | null>(null)
   const refManejadores = useRef(manejadores)
   useEffect(() => {
     refManejadores.current = manejadores
@@ -37,14 +38,27 @@ export function useTiempoReal(opciones: { pedidoId?: string; tokenSeguimiento?: 
           .catch(() => cb({ ticket: '' }))
       },
     })
+    refSocket.current = socket
     socket.on('connect', () => setConectado(true))
     socket.on('disconnect', () => setConectado(false))
     socket.onAny((evento: string, datos: unknown) => refManejadores.current[evento]?.(datos))
     return () => {
+      refSocket.current = null
       socket.removeAllListeners()
       socket.disconnect()
     }
   }, [activo, tiempoRealUrl, opciones.pedidoId, opciones.tokenSeguimiento])
 
-  return { conectado }
+  /** Emite un evento con confirmación (ack). Devuelve null si no hay conexión o no responde a tiempo. */
+  const emitir = useCallback(<T,>(evento: string, datos: unknown, ms = 5000): Promise<T | null> => {
+    const s = refSocket.current
+    if (!s?.connected) return Promise.resolve(null)
+    return s
+      .timeout(ms)
+      .emitWithAck(evento, datos)
+      .then((r: T) => r)
+      .catch(() => null)
+  }, [])
+
+  return { conectado, emitir }
 }

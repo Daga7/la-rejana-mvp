@@ -66,3 +66,14 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D38 | «Pagado» y «cerrado» son independientes del estado de entrega: la caja registra pagos (efectivo con cambio o QR con referencia) y cierra el pedido entregado y pagado. | El flujo de caja no se mezcla con la logística. |
 | D39 | La web local carga el `.env` raíz con un lanzador propio (`scripts/next-con-env.mjs`) en lugar de `--env-file`. | Next propaga las banderas de Node a sus workers (no permitido en `NODE_OPTIONS`) y el `NODE_ENV` del `.env` rompía el build. |
 | D40 | Pruebas e2e con **Playwright** usando el Chromium del sistema (`CHROMIUM_PATH`), sin descargar navegadores. | Verificar los flujos reales en un navegador (incluido el tiempo real) sin dependencias pesadas. |
+
+## Domiciliario (fase 5)
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D41 | «Tiempo total» = minutos hasta la **última entrega** de la salida (sin contar el regreso). Como las llegadas crecen a lo largo de la ruta, cumplir el límite equivale a que la última llegue a tiempo. Se resuelve exacto (Held-Karp) y, si no cabe, se busca el **menor número de salidas** factibles (DP sobre subconjuntos). Máximo 10 pedidos por plan. | Exacto y en milisegundos para el tamaño real de una salida en moto; cumple «sugerir dividir en dos salidas» y lo generaliza si hiciera falta. |
+| D42 | Tiempos de viaje por el puerto `MatrizTiempos`: por defecto distancia en línea recta × 1,35 a 22 km/h (sin costo ni llaves); OSRM o Google Distance Matrix con una variable. 3 min de servicio por parada. | Funciona desde el primer día y mejora con tráfico real cuando haya llave de Google. |
+| D43 | Ubicación del domiciliario por **WebSocket con confirmación** (respaldo REST), máximo una cada 2 s en el servidor (cada 5 s desde el celular). Solo se acepta con recorrido activo y solo se emite a las salas de los pedidos de ese recorrido que siguen «en camino». Se guarda la última posición cada 15 s y se **borra al terminar** el recorrido. | Privacidad del encargo y minimización de datos (Ley 1581). |
+| D44 | ETA por parada recalculado con el proveedor de mapas cada 30 s y descontando el tiempo transcurrido entre cálculos. | Evita llamadas excesivas a servicios de pago. |
+| D45 | Un domiciliario tiene como máximo un recorrido activo (índice único parcial); al entregar el último pedido el recorrido termina solo. Waze se abre con la siguiente parada (Waze no admite varias); Google Maps con toda la ruta. | Reglas simples para la operación diaria. |
+| D46 | La pantalla del domiciliario pide **Wake Lock** (pantalla encendida) durante el recorrido. | Si el teléfono se bloquea, el navegador deja de enviar la ubicación. |

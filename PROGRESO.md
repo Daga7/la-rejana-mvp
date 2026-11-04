@@ -10,8 +10,8 @@
 | 2. Autenticación completa | ✅ Hecha | `feat(auth): add registration, sessions, oauth and invitations` |
 | 3. Menú, recetas e inventario | ✅ Hecha | `feat(menu): add per-branch menu, recipes and inventory` |
 | 4. Pedidos a domicilio, estados y push | ✅ Hecha | `feat(pedidos): add delivery orders, push and live tracking` |
-| 5. Domiciliario: tiempo real y ruta óptima | ⏳ Siguiente | — |
-| 6. Cocina, caja y admin | Pendiente | — |
+| 5. Domiciliario: tiempo real y ruta óptima | ✅ Hecha | `feat(domicilios): add optimal routes and live courier tracking` |
+| 6. Cocina, caja y admin | ⏳ Siguiente | — |
 | 7. Buzón de quejas | Pendiente | — |
 | 8. Asistente de WhatsApp con PDF | Pendiente | — |
 | Cierre: seguridad, audit, Lighthouse, INFORME | Pendiente | — |
@@ -50,11 +50,18 @@
 - `application/push.ts`: suscripciones Web Push (lista blanca anti-SSRF), tickets de tiempo real con salas por pedido/sede/domiciliario/admin. Servidor Socket.IO autenticado por ticket (`adapters/realtime/servidor.ts`).
 - Rutas `adapters/http/rutas/pedidos.ts` (+ direcciones guardadas y geocodificación `/api/geo/*`).
 - Web: `/carrito` (sincroniza precios y agotados), `/checkout` (mapa Leaflet con pin y radio de cobertura, ubicación del dispositivo, buscador de direcciones, direcciones guardadas, efectivo con «paga con» o QR, autorización de datos para invitados, idempotencia), `/pedido/[id]` (pasos animados, ilustraciones por estado, tiempo real con respaldo por sondeo, mapa y ETA cuando va en camino, activar push, QR de pago, cancelar), `/mis-pedidos` (cuenta o dispositivo).
-- Pruebas: 17 de pedidos (descuento exacto por receta, reposición, concurrencia sin sobreventa, idempotencia, acceso por token, flujo cocina→caja→domiciliario con permisos de rol/sede, push, anti-SSRF, cobro y cierre) + 3 de tiempo real con Socket.IO real + 3 de reglas de sede. **Total 93 en verde.** E2E en navegador: compra como invitado de punta a punta con actualización en vivo.
+- Pruebas: 17 de pedidos (descuento exacto por receta, reposición, concurrencia sin sobreventa, idempotencia, acceso por token, flujo cocina→caja→domiciliario con permisos de rol/sede, push, anti-SSRF, cobro y cierre) + 3 de tiempo real con Socket.IO real + 3 de reglas de sede. **Total 90 en verde.** E2E en navegador: compra como invitado de punta a punta con actualización en vivo.
+
+## Fase 5 — qué quedó
+
+- `application/domicilios.ts`: pedidos asignados al domiciliario, planificación de ruta (matriz del puerto de mapas + optimizador exacto, límite de la sede, sugerencia de dividir salidas, enlaces Google Maps/Waze), iniciar recorrido (pedidos a «en camino» con push), ubicación en vivo con ETA por parada solo para los pedidos en camino del recorrido, entregar (cierra el recorrido al terminar y borra la ubicación), finalizar. Si la caja cancela un pedido en camino, se deja de compartir la ubicación con ese cliente.
+- Rutas `adapters/http/rutas/domicilios.ts` y manejador Socket.IO `ubicacion` (revalida el usuario en cada envío).
+- Web: marco común del personal (`componentes/personal/MarcoPersonal.tsx`) y `/domiciliario` (listos para salir / en cocina, planificador, recorrido con GPS `watchPosition`, Wake Lock, cobro y cambio, Maps/Waze, entregar).
+- Pruebas: 5 de integración con Socket.IO real (una salida vs. dividir, permisos, privacidad de la ubicación, cierre del recorrido). **Total 95 en verde.** E2E con dos navegadores: el cliente ve al domiciliario acercarse con ETA y la entrega en vivo.
 
 ## Siguiente paso exacto
 
-**Fase 5 — Domiciliario.** Crear `application/domicilios.ts`: pedidos asignados al domiciliario, `planificarRuta` (matriz de tiempos con el puerto de mapas + `domain/ruta.ts`, límite por sede, enlaces Google Maps/Waze), `iniciarRecorrido` (crea recorrido, pasa los pedidos a «en camino», push), `actualizarUbicacion` (solo con recorrido activo; calcula ETA por parada y emite `pedido:ubicacion` solo a las salas de los pedidos en camino), `finalizarRecorrido` (borra la ubicación). Manejador Socket.IO para `ubicacion` + ruta REST de respaldo. Pantalla `/domiciliario` (lista, planificador con sugerencia de dividir salidas, iniciar recorrido con `watchPosition`, marcar entregado, abrir en Maps/Waze). Pruebas de privacidad de la ubicación.
+**Fase 6 — Cocina, caja y admin.** API: `application/admin.ts` (empleados: listar, cambiar rol/sede/activo/WhatsApp con revocación de sesiones y auditoría; auditoría paginada; tablero de ventas del día/mes por sede con `RepoReportes`) y `application/reportes.ts` (catálogo cerrado: ventas por periodo y sede, productos más vendidos, inventario por insumo y sede; lo reutiliza la fase 8). Web: `/cocina` (tablero por estado en tiempo real, cambio de estado con un toque, sonido de pedido nuevo), `/caja` (pedidos del día, asignar domiciliario, cobrar con cambio, cancelar, cerrar), `/admin` (tablero con gráficas, sedes, catálogo/recetas/menú por sede, insumos e inventario con alertas, empleados e invitaciones, auditoría). Leer la skill `dataviz` antes de las gráficas.
 
 ## Cómo verificar lo hecho
 

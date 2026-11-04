@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from 'jose'
 import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
 import { crearCasosAuth } from './application/auth'
+import { crearCasosDomicilios, type CasosDomicilios } from './application/domicilios'
 import { crearCasosInventario } from './application/inventario'
 import { crearCasosMenu } from './application/menu'
 import { crearCasosPedidos } from './application/pedidos'
@@ -65,6 +66,7 @@ export interface Casos {
   inventario: ReturnType<typeof crearCasosInventario>
   pedidos: ReturnType<typeof crearCasosPedidos>
   push: ReturnType<typeof crearCasosPush>
+  domicilios: CasosDomicilios
 }
 
 export interface Sobrescrituras {
@@ -130,13 +132,28 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
   const eventos = new PublicadorSocketIo()
 
   const inventario = crearCasosInventario({ uow, reloj, eventos, log })
-  const pedidos = crearCasosPedidos({ uow, reloj, cripto, eventos, push, log, inventario, permitirFueraDeHorario: env.PERMITIR_PEDIDOS_FUERA_DE_HORARIO })
+  // pedidos y domicilios se conocen mutuamente a través de funciones (sin importarse entre sí).
+  let domicilios: CasosDomicilios | null = null
+  const pedidos = crearCasosPedidos({
+    uow,
+    reloj,
+    cripto,
+    eventos,
+    push,
+    log,
+    inventario,
+    permitirFueraDeHorario: env.PERMITIR_PEDIDOS_FUERA_DE_HORARIO,
+    eta: (id) => domicilios?.eta(id) ?? null,
+    alSalirDeRecorrido: (id) => domicilios?.pedidoCerrado(id),
+  })
+  domicilios = crearCasosDomicilios({ uow, reloj, mapas, eventos, log, pedidos: () => pedidos })
   const casos: Casos = {
     auth: crearCasosAuth({ uow, reloj, cripto, hasher, filtradas, tokens, correo, log, webOrigin: env.WEB_ORIGIN, proveedores }),
     menu: crearCasosMenu({ uow, reloj, eventos }),
     inventario,
     pedidos,
     push: crearCasosPush({ uow, push, tokens, pedidos }),
+    domicilios,
   }
 
   return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }

@@ -180,7 +180,7 @@ export function Seguimiento({ id }: { id: string }) {
 
       {!terminado && pushSoportado() && !pushActivo && (
         <button className="btn btn-turquesa btn-lg w-full" onClick={() => void notificarme()}>
-          <Bell size={18} aria-hidden /> Avísame cuando salga mi pedido
+          <Bell size={18} aria-hidden /> {pedido.estado === 'en_camino' ? 'Avísame cuando llegue' : 'Avísame cuando salga mi pedido'}
         </button>
       )}
       {!terminado && pushActivo && (

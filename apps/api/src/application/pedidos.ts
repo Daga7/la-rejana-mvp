@@ -29,6 +29,8 @@ export interface DepsPedidos {
   permitirFueraDeHorario: boolean
   /** ETA en vivo de un pedido en camino (lo provee el módulo de domicilios). */
   eta?: (pedidoId: string) => number | null
+  /** Aviso al módulo de domicilios cuando un pedido sale del recorrido (p. ej., cancelado en camino). */
+  alSalirDeRecorrido?: (pedidoId: string) => void
 }
 
 export function aPedidoDTO(p: PedidoRegistro, items: ItemPedidoRegistro[], eventos: EventoPedido[], eta: number | null = null): PedidoDTO {
@@ -357,6 +359,7 @@ export function crearCasosPedidos(d: DepsPedidos) {
         if (esPersonal) await auditar(repos, actor, 'pedido.cancelar', 'pedido', p.id, { numero: p.numero, motivo: e.motivo, reponerInventario: reponerInv }, ctx.ip)
       })
       if (repuestos.length) d.eventos.menuCambio(sedeId)
+      d.alSalirDeRecorrido?.(id)
       return (await publicar(id))!
     },
 

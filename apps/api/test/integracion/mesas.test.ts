@@ -277,6 +277,34 @@ describe('mesas: permisos por rol y sede', () => {
   })
 })
 
+describe('mesas: plano del salón', () => {
+  it('ubica sola una mesa nueva, no deja montar una mesa sobre otra y permite moverla', async () => {
+    const crear = (cuerpo: Record<string, unknown>) => admin.post(`/api/admin/sedes/${ids.normandia}/mesas`, { puestos: 4, activa: true, ...cuerpo })
+    const a = (await crear({ numero: 40, zona: 'Jardín' })).json().mesa
+    const b = (await crear({ numero: 41, zona: 'Jardín', forma: 'rectangular' })).json().mesa
+    expect(a).toMatchObject({ x: 1, y: 1, ancho: 2, alto: 2, forma: 'cuadrada' })
+    expect(b).toMatchObject({ x: 4, y: 1, ancho: 3, alto: 2, forma: 'rectangular' })
+
+    const encima = await crear({ numero: 42, zona: 'Jardín', x: 2, y: 2 })
+    expect(encima.statusCode).toBe(422)
+    expect(encima.json().error.mensaje).toMatch(/encima de la mesa 40/)
+    expect((await crear({ numero: 43, zona: 'Jardín', x: 23, y: 0 })).statusCode).toBe(400)
+
+    // Mover: a un lugar libre sí; sobre otra no
+    const movida = await admin.put(`/api/admin/mesas/${a.id}`, { numero: 40, zona: 'Jardín', puestos: 4, activa: true, x: 10, y: 5, forma: 'redonda' })
+    expect(movida.json().mesa).toMatchObject({ x: 10, y: 5, forma: 'redonda' })
+    expect((await admin.put(`/api/admin/mesas/${a.id}`, { numero: 40, zona: 'Jardín', puestos: 4, activa: true, x: 5, y: 1 })).statusCode).toBe(422)
+    // Cambio de zona sin posición: se ubica en la zona nueva
+    const otraZona = (await admin.put(`/api/admin/mesas/${b.id}`, { numero: 41, zona: 'Azotea', puestos: 6, activa: true })).json().mesa
+    expect(otraZona).toMatchObject({ zona: 'Azotea', x: 1, y: 1 })
+
+    // El salón de la sede trae la posición y la forma de cada mesa
+    const salon = (await admin.get(`/api/mesas/${ids.normandia}/salon`)).json<{ salon: SalonDTO }>().salon
+    expect(salon.mesas.find((m) => m.numero === 40)).toMatchObject({ zona: 'Jardín', x: 10, y: 5, forma: 'redonda' })
+    expect(salon.mesas.find((m) => m.numero === 1)).toMatchObject({ zona: 'Primer piso', x: 1, y: 1, forma: 'cuadrada' })
+  })
+})
+
 describe('mesas: tiempo real', () => {
   function conectar(ticket: string): Promise<Socket> {
     return new Promise((resolver, rechazar) => {

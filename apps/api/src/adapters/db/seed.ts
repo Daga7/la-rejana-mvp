@@ -405,23 +405,58 @@ export async function sembrar(
     log(`✔ ${vivos.length} pedidos en curso hoy en Villaluz`)
 
     // --- Mesas del salón ----------------------------------------------------------------------
-    const plano: Record<string, [zona: string, puestos: number[]][]> = {
+    type MesaSeed = [puestos: number, x: number, y: number, ancho: number, alto: number, forma: 'cuadrada' | 'redonda' | 'rectangular']
+    const plano: Record<string, [zona: string, mesas: MesaSeed[]][]> = {
       villaluz: [
-        ['Salón', [4, 4, 4, 2, 2, 6]],
-        ['Terraza', [4, 4, 6, 8]],
+        [
+          'Salón',
+          [
+            [4, 1, 1, 2, 2, 'cuadrada'],
+            [4, 4, 1, 2, 2, 'cuadrada'],
+            [4, 7, 1, 2, 2, 'redonda'],
+            [2, 1, 4, 2, 2, 'redonda'],
+            [2, 4, 4, 2, 2, 'redonda'],
+            [6, 7, 4, 3, 2, 'rectangular'],
+          ],
+        ],
+        [
+          'Terraza',
+          [
+            [4, 1, 1, 2, 2, 'redonda'],
+            [4, 4, 1, 2, 2, 'redonda'],
+            [6, 7, 1, 3, 2, 'rectangular'],
+            [8, 1, 4, 4, 2, 'rectangular'],
+          ],
+        ],
       ],
       normandia: [
-        ['Primer piso', [4, 4, 2, 2, 6]],
-        ['Segundo piso', [4, 6, 8]],
+        [
+          'Primer piso',
+          [
+            [4, 1, 1, 2, 2, 'cuadrada'],
+            [4, 4, 1, 2, 2, 'cuadrada'],
+            [2, 7, 1, 2, 2, 'redonda'],
+            [2, 10, 1, 2, 2, 'redonda'],
+            [6, 1, 4, 3, 2, 'rectangular'],
+          ],
+        ],
+        [
+          'Segundo piso',
+          [
+            [4, 1, 1, 2, 2, 'cuadrada'],
+            [6, 4, 1, 3, 2, 'rectangular'],
+            [8, 1, 4, 4, 2, 'rectangular'],
+          ],
+        ],
       ],
     }
     const mesasPorSede: Record<string, Record<number, string>> = {}
     for (const [slug, zonas] of Object.entries(plano)) {
       let numero = 1
       mesasPorSede[slug] = {}
-      for (const [zona, puestos] of zonas) {
-        for (const p of puestos) {
-          const m = await repos.mesas.crearMesa({ sedeId: sedes[slug]!, numero, zona, puestos: p, activa: true })
+      for (const [zona, mesasZona] of zonas) {
+        for (const [puestos, x, y, ancho, alto, forma] of mesasZona) {
+          const m = await repos.mesas.crearMesa({ sedeId: sedes[slug]!, numero, zona, puestos, activa: true, x, y, ancho, alto, forma })
           mesasPorSede[slug]![numero++] = m.id
         }
       }

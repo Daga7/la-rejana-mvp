@@ -4,6 +4,7 @@ import type {
   EstadoCuenta,
   EstadoPago,
   EstadoPedido,
+  FormaMesa,
   MetodoPago,
   ProveedorOAuth,
   Rol,
@@ -515,6 +516,11 @@ export interface MesaRegistro {
   zona: string | null
   puestos: number
   activa: boolean
+  x: number
+  y: number
+  ancho: number
+  alto: number
+  forma: FormaMesa
 }
 
 export interface CuentaRegistro {

@@ -2,6 +2,7 @@ import type {
   EstadoBuzon,
   EstadoCuenta,
   EstadoMesa,
+  FormaMesa,
   EstadoPago,
   EstadoPedido,
   MetodoPago,
@@ -246,6 +247,12 @@ export interface MesaDTO {
   zona: string | null
   puestos: number
   activa: boolean
+  /** Posición y tamaño en el plano de su zona, en casillas. */
+  x: number
+  y: number
+  ancho: number
+  alto: number
+  forma: FormaMesa
 }
 
 export interface PagoCuentaDTO {

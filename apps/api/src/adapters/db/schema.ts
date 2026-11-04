@@ -362,6 +362,12 @@ export const mesas = pgTable(
     zona: text('zona'),
     puestos: integer('puestos').notNull().default(4),
     activa: boolean('activa').notNull().default(true),
+    // Plano de la zona: posición y tamaño en casillas de una cuadrícula de 24 × 24.
+    posX: integer('pos_x').notNull().default(0),
+    posY: integer('pos_y').notNull().default(0),
+    ancho: integer('ancho').notNull().default(2),
+    alto: integer('alto').notNull().default(2),
+    forma: text('forma', { enum: ['cuadrada', 'redonda', 'rectangular'] }).notNull().default('cuadrada'),
     creadoEn: creadoEn(),
     actualizadoEn: actualizadoEn(),
   },
@@ -369,6 +375,8 @@ export const mesas = pgTable(
     uniqueIndex('mesas_sede_numero_uq').on(t.sedeId, t.numero),
     check('mesas_numero_ck', sql`${t.numero} between 1 and 999`),
     check('mesas_puestos_ck', sql`${t.puestos} between 1 and 20`),
+    check('mesas_forma_ck', sql`${t.forma} in ('cuadrada','redonda','rectangular')`),
+    check('mesas_plano_ck', sql`${t.ancho} between 1 and 4 and ${t.alto} between 1 and 4 and ${t.posX} >= 0 and ${t.posY} >= 0 and ${t.posX} + ${t.ancho} <= 24 and ${t.posY} + ${t.alto} <= 24`),
   ],
 )
 

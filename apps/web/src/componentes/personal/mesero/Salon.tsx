@@ -1,7 +1,7 @@
 'use client'
 
 import { cop, hora, minutosDesde, NOMBRE_ESTADO_MESA, type CuentaMesaDTO, type MesaSalonDTO, type PedidoDTO, type SalonDTO } from '@rejana/shared'
-import { BellRing, Check, ChevronRight, Minus, Plus, Users } from 'lucide-react'
+import { BellRing, Check, ChevronRight, LayoutGrid, Map as IconoPlano, Minus, Plus, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
@@ -12,6 +12,7 @@ import { useSesion } from '@/lib/sesion'
 import { useTiempoReal } from '@/lib/tiempo-real'
 import { BotonSonido, SelectorSede, sonarCampana, useSedeOperacion, useTic } from '../comunes'
 import { ESTILO_MESA, LeyendaMesas, vibrar } from './comunes'
+import { Plano, tamanoPlano } from './Plano'
 
 export function Salon() {
   const { sedeId, sede } = useSedeOperacion()
@@ -21,6 +22,8 @@ export function Salon() {
   const [abrir, setAbrir] = useState<MesaSalonDTO | null>(null)
   const [sonido, setSonido] = useState(false)
   const [sirviendo, setSirviendo] = useState<string | null>(null)
+  const [zona, setZona] = useState<string | null>(null)
+  const [vista, setVista] = useState<'plano' | 'lista'>('plano')
   const vistos = useRef<Set<string> | null>(null)
   useTic()
 
@@ -66,6 +69,9 @@ export function Salon() {
 
   const zonas = new Map<string, MesaSalonDTO[]>()
   for (const m of salon?.mesas ?? []) zonas.set(m.zona ?? 'Salón', [...(zonas.get(m.zona ?? 'Salón') ?? []), m])
+  const zonaActual = zona && zonas.has(zona) ? zona : ([...zonas.keys()][0] ?? null)
+  const mesasZona = zonaActual ? (zonas.get(zonaActual) ?? []) : []
+  const tocarMesa = (m: MesaSalonDTO) => (m.cuenta ? router.push(`/mesero/cuenta/${m.cuenta.id}`) : setAbrir(m))
   const misMesas = (salon?.mesas ?? []).filter((m) => m.cuenta && m.cuenta.meseroId === usuario?.id)
 
   return (
@@ -146,18 +152,52 @@ export function Salon() {
             </section>
           </aside>
 
-          <section className="grid gap-5 lg:order-1" aria-label="Plano del salón">
+          <section className="grid min-w-0 gap-4 lg:order-1" aria-label="Plano del salón">
             {salon.mesas.length === 0 && <p className="rounded-2xl border-2 border-dashed border-noche-700 p-8 text-center text-noche-300">Esta sede todavía no tiene mesas. El administrador las crea en Administración › Sedes.</p>}
-            {[...zonas.entries()].map(([zona, mesas]) => (
-              <div key={zona}>
-                <h2 className="mb-2 text-sm font-black uppercase tracking-wider text-noche-300">{zona}</h2>
+            {zonas.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="sin-scroll flex min-w-0 flex-1 gap-2 overflow-x-auto" role="tablist" aria-label="Zonas del salón">
+                  {[...zonas.keys()].map((z) => (
+                    <button key={z} role="tab" aria-selected={z === zonaActual} onClick={() => setZona(z)} className={`btn btn-sm shrink-0 ${z === zonaActual ? 'btn-amarillo' : 'btn-noche'}`}>
+                      {z}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1" role="group" aria-label="Vista">
+                  <button className={`btn btn-sm ${vista === 'plano' ? 'btn-blanco' : 'btn-fantasma text-white'}`} aria-pressed={vista === 'plano'} onClick={() => setVista('plano')}>
+                    <IconoPlano size={16} aria-hidden /> Plano
+                  </button>
+                  <button className={`btn btn-sm ${vista === 'lista' ? 'btn-blanco' : 'btn-fantasma text-white'}`} aria-pressed={vista === 'lista'} onClick={() => setVista('lista')}>
+                    <LayoutGrid size={16} aria-hidden /> Lista
+                  </button>
+                </div>
+              </div>
+            )}
+            {mesasZona.length > 0 &&
+              (vista === 'plano' ? (
+                <div className="sin-scroll -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                  <Plano
+                    oscuro
+                    mesas={mesasZona}
+                    plano={tamanoPlano(mesasZona)}
+                    claseMesa={(m) => ESTILO_MESA[m.estado]}
+                    onMesa={tocarMesa}
+                    contenido={(m) => (
+                      <>
+                        <span className="text-lg font-black sm:text-2xl">
+                          <span className="sr-only">Mesa </span>
+                          {m.numero}
+                        </span>
+                        <span className="mt-0.5 text-[10px] font-bold opacity-90 sm:text-xs">{m.cuenta ? `$${Math.round(m.cuenta.subtotal / 1000)}k` : 'Libre'}</span>
+                      </>
+                    )}
+                    etiquetaMesa={(m) => `, ${m.cuenta ? `${NOMBRE_ESTADO_MESA[m.estado]}, ${m.cuenta.comensales} personas` : `${m.puestos} puestos`}`}
+                  />
+                </div>
+              ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-3">
-                  {mesas.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => (m.cuenta ? router.push(`/mesero/cuenta/${m.cuenta.id}`) : setAbrir(m))}
-                      className={`grid min-h-28 content-between rounded-2xl border-2 border-tinta p-3 text-left shadow-sticker-sm transition active:scale-[0.97] ${ESTILO_MESA[m.estado]}`}
-                    >
+                  {mesasZona.map((m) => (
+                    <button key={m.id} onClick={() => tocarMesa(m)} className={`grid min-h-28 content-between rounded-2xl border-2 border-tinta p-3 text-left shadow-sticker-sm transition active:scale-[0.97] ${ESTILO_MESA[m.estado]}`}>
                       <span className="flex items-start justify-between">
                         <span className="text-3xl font-black leading-none">
                           <span className="sr-only">Mesa </span>
@@ -180,8 +220,7 @@ export function Salon() {
                     </button>
                   ))}
                 </div>
-              </div>
-            ))}
+              ))}
             <LeyendaMesas />
           </section>
         </div>

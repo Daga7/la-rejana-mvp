@@ -55,6 +55,14 @@ export const NOMBRE_ESTADO_MESA_RONDA: Record<EstadoPedido, string> = {
   cancelado: 'Cancelada',
 }
 
+/** Forma de la mesa en el plano del salón. */
+export const FORMAS_MESA = ['cuadrada', 'redonda', 'rectangular'] as const
+export type FormaMesa = (typeof FORMAS_MESA)[number]
+export const NOMBRE_FORMA_MESA: Record<FormaMesa, string> = { cuadrada: 'Cuadrada', redonda: 'Redonda', rectangular: 'Rectangular' }
+
+/** El plano de cada zona es una cuadrícula de hasta 24 × 24 casillas. */
+export const PLANO_MAX = 24
+
 /** Cuenta de una mesa: agrupa las rondas que el mesero envía a la cocina hasta que se cobra. */
 export const ESTADOS_CUENTA = ['abierta', 'cerrada', 'cancelada'] as const
 export type EstadoCuenta = (typeof ESTADOS_CUENTA)[number]

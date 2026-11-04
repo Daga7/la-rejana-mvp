@@ -6,7 +6,22 @@ import { cuentasMesa, mesas, pagos, pedidos, usuarios } from '../schema'
 
 const mesero = alias(usuarios, 'mesero')
 
-const aMesa = (m: typeof mesas.$inferSelect): MesaRegistro => ({ id: m.id, sedeId: m.sedeId, numero: m.numero, zona: m.zona, puestos: m.puestos, activa: m.activa })
+const aMesa = (m: typeof mesas.$inferSelect): MesaRegistro => ({
+  id: m.id,
+  sedeId: m.sedeId,
+  numero: m.numero,
+  zona: m.zona,
+  puestos: m.puestos,
+  activa: m.activa,
+  x: m.posX,
+  y: m.posY,
+  ancho: m.ancho,
+  alto: m.alto,
+  forma: m.forma,
+})
+
+/** Del registro a las columnas (posX/posY en la base). */
+const aColumnas = ({ x, y, ...resto }: Partial<Omit<MesaRegistro, 'id'>>) => ({ ...resto, ...(x !== undefined ? { posX: x } : {}), ...(y !== undefined ? { posY: y } : {}) })
 
 function consultaCuentas(db: Ejecutor) {
   return db
@@ -53,13 +68,17 @@ export function repoMesas(db: Ejecutor): RepoMesas {
       return m ? aMesa(m) : null
     },
     async crearMesa(datos) {
-      const [m] = await db.insert(mesas).values(datos).returning()
+      const { sedeId, numero, ...resto } = datos
+      const [m] = await db
+        .insert(mesas)
+        .values({ sedeId, numero, ...aColumnas(resto) })
+        .returning()
       return aMesa(m!)
     },
     async actualizarMesa(id, cambios) {
       await db
         .update(mesas)
-        .set({ ...cambios, actualizadoEn: new Date() })
+        .set({ ...aColumnas(cambios), actualizadoEn: new Date() })
         .where(eq(mesas.id, id))
     },
     async cuentasAbiertas(sedeId) {

@@ -2,6 +2,7 @@ import type { CobrarCuentaInput, CuentaMesaDTO, MesaDTO, MesaInput, MesaSalonDTO
 import { ErrorDominio, err } from '../domain/errores'
 import { esMesa, estadoDeMesa, rondasSinServir, subtotalCuenta, validarCobroMesa } from '../domain/pedido'
 import { exigirPermiso, exigirSede, type Actor } from '../domain/permisos'
+import { primerLugarLibre, validarUbicacion } from '../domain/plano'
 import type { CuentaRegistro, MesaRegistro, PedidoMesaRegistro, Repositorios, UnidadDeTrabajo } from '../ports/repositorios'
 import type { Logger, PublicadorEventos, Reloj } from '../ports/servicios'
 import { auditar, type ContextoSolicitud } from './comun'
@@ -14,7 +15,21 @@ export interface DepsMesas {
   log: Logger
 }
 
-const aMesaDTO = (m: MesaRegistro): MesaDTO => ({ id: m.id, sedeId: m.sedeId, numero: m.numero, zona: m.zona, puestos: m.puestos, activa: m.activa })
+const aMesaDTO = (m: MesaRegistro): MesaDTO => ({
+  id: m.id,
+  sedeId: m.sedeId,
+  numero: m.numero,
+  zona: m.zona,
+  puestos: m.puestos,
+  activa: m.activa,
+  x: m.x,
+  y: m.y,
+  ancho: m.ancho,
+  alto: m.alto,
+  forma: m.forma,
+})
+
+const mismaZona = (a: string | null, b: string | null) => (a ?? '').toLowerCase() === (b ?? '').toLowerCase()
 
 /** Violación de unicidad de PostgreSQL (p. ej., dos meseros abren la misma mesa a la vez). */
 function esUnicidad(error: unknown): boolean {
@@ -219,10 +234,21 @@ export function crearCasosMesas(d: DepsMesas) {
     async crearMesa(actor: Actor, sedeId: string, e: MesaInput, ctx: ContextoSolicitud): Promise<MesaDTO> {
       const a = exigirPermiso(actor, 'mesas.gestionar')
       if (!(await uow.repos.sedes.porId(sedeId))) throw err.noEncontrado('La sede no existe')
+      const zona = e.zona?.trim() || null
+      const forma = e.forma ?? 'cuadrada'
+      const tamano = { ancho: e.ancho ?? (forma === 'rectangular' ? 3 : 2), alto: e.alto ?? 2 }
       try {
         const m = await uow.transaccion(async (repos) => {
-          const nueva = await repos.mesas.crearMesa({ sedeId, numero: e.numero, zona: e.zona?.trim() || null, puestos: e.puestos, activa: e.activa })
-          await auditar(repos, a, 'mesa.crear', 'mesa', nueva.id, { sedeId, numero: e.numero }, ctx.ip)
+          const ocupadas = (await repos.mesas.mesas(sedeId)).filter((o) => mismaZona(o.zona, zona))
+          let lugar: { x: number; y: number } | null = e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : null
+          if (lugar) {
+            if (e.activa) validarUbicacion({ ...lugar, ...tamano, numero: e.numero }, ocupadas)
+          } else {
+            lugar = primerLugarLibre(tamano, ocupadas)
+            if (!lugar) throw err.validacion('El plano de esta zona está lleno: mueve o achica otras mesas')
+          }
+          const nueva = await repos.mesas.crearMesa({ sedeId, numero: e.numero, zona, puestos: e.puestos, activa: e.activa, ...lugar, ...tamano, forma })
+          await auditar(repos, a, 'mesa.crear', 'mesa', nueva.id, { sedeId, numero: e.numero, zona, ...lugar }, ctx.ip)
           return nueva
         })
         return aMesaDTO(m)
@@ -232,6 +258,7 @@ export function crearCasosMesas(d: DepsMesas) {
       }
     },
 
+    /** Edita la mesa (datos y ubicación en el plano). Valida que no se monte sobre otra de su zona. */
     async actualizarMesa(actor: Actor, id: string, e: MesaInput, ctx: ContextoSolicitud): Promise<MesaDTO> {
       const a = exigirPermiso(actor, 'mesas.gestionar')
       const m = await uow.repos.mesas.mesa(id)
@@ -239,10 +266,21 @@ export function crearCasosMesas(d: DepsMesas) {
       if (!e.activa && m.activa && (await uow.repos.mesas.cuentaAbiertaDeMesa(id))) {
         throw err.validacion('La mesa tiene una cuenta abierta: cóbrala o libérala antes de sacarla de servicio')
       }
+      const zona = e.zona?.trim() || null
+      const forma = e.forma ?? m.forma
+      const tamano = { ancho: e.ancho ?? m.ancho, alto: e.alto ?? m.alto }
       try {
         await uow.transaccion(async (repos) => {
-          await repos.mesas.actualizarMesa(id, { numero: e.numero, zona: e.zona?.trim() || null, puestos: e.puestos, activa: e.activa })
-          await auditar(repos, a, 'mesa.actualizar', 'mesa', id, { antes: aMesaDTO(m), despues: { numero: e.numero, zona: e.zona ?? null, puestos: e.puestos, activa: e.activa } }, ctx.ip)
+          const ocupadas = (await repos.mesas.mesas(m.sedeId)).filter((o) => o.id !== id && mismaZona(o.zona, zona))
+          let lugar: { x: number; y: number } | null = e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : mismaZona(m.zona, zona) ? { x: m.x, y: m.y } : null
+          // Cambió de zona sin posición: se ubica en el primer espacio libre de la zona nueva.
+          if (!lugar) {
+            lugar = primerLugarLibre(tamano, ocupadas)
+            if (!lugar) throw err.validacion('El plano de esa zona está lleno: mueve o achica otras mesas')
+          }
+          if (e.activa) validarUbicacion({ ...lugar, ...tamano, numero: e.numero }, ocupadas)
+          await repos.mesas.actualizarMesa(id, { numero: e.numero, zona, puestos: e.puestos, activa: e.activa, ...lugar, ...tamano, forma })
+          await auditar(repos, a, 'mesa.actualizar', 'mesa', id, { antes: aMesaDTO(m), despues: { numero: e.numero, zona, puestos: e.puestos, activa: e.activa, ...lugar, ...tamano, forma } }, ctx.ip)
         })
       } catch (error) {
         if (esUnicidad(error)) throw err.conflicto(`Ya existe la mesa ${e.numero} en esta sede`, { campo: 'numero' })

@@ -1,6 +1,8 @@
 import './zod-navegador'
 import { z } from 'zod'
 import {
+  FORMAS_MESA,
+  PLANO_MAX,
   ESTADOS_BUZON,
   ESTADOS_PEDIDO,
   METODOS_PAGO,
@@ -263,13 +265,26 @@ export const sedeSchema = z.object({
   activa: z.boolean(),
 })
 
-export const mesaSchema = z.object({
-  numero: z.int('Escribe el número de la mesa').min(1, 'Mínimo 1').max(999, 'Máximo 999'),
-  /** Zona del salón (p. ej. "Terraza", "Segundo piso"). */
-  zona: z.string().trim().max(40, 'Máximo 40 caracteres').optional().nullable(),
-  puestos: z.int().min(1, 'Mínimo 1 puesto').max(20, 'Máximo 20 puestos'),
-  activa: z.boolean(),
-})
+const casilla = z.int().min(0).max(PLANO_MAX - 1)
+const lado = z.int().min(1, 'Mínimo 1 casilla').max(4, 'Máximo 4 casillas')
+
+export const mesaSchema = z
+  .object({
+    numero: z.int('Escribe el número de la mesa').min(1, 'Mínimo 1').max(999, 'Máximo 999'),
+    /** Zona del salón (p. ej. "Terraza", "Segundo piso"): cada zona tiene su propio plano. */
+    zona: z.string().trim().max(40, 'Máximo 40 caracteres').optional().nullable(),
+    puestos: z.int().min(1, 'Mínimo 1 puesto').max(20, 'Máximo 20 puestos'),
+    activa: z.boolean(),
+    /** Posición en el plano (casillas). Si no se envía al crear, la mesa se ubica en el primer espacio libre. */
+    x: casilla.optional(),
+    y: casilla.optional(),
+    ancho: lado.optional(),
+    alto: lado.optional(),
+    forma: z.enum(FORMAS_MESA).optional(),
+  })
+  .refine((m) => (m.x === undefined) === (m.y === undefined), { message: 'Envía las dos coordenadas de la mesa', path: ['x'] })
+  .refine((m) => m.x === undefined || m.x + (m.ancho ?? 2) <= PLANO_MAX, { message: 'La mesa se sale del plano', path: ['x'] })
+  .refine((m) => m.y === undefined || m.y + (m.alto ?? 2) <= PLANO_MAX, { message: 'La mesa se sale del plano', path: ['y'] })
 export type MesaInput = z.infer<typeof mesaSchema>
 
 export const categoriaSchema = z.object({

@@ -69,3 +69,16 @@ describe('cuenta de la mesa', () => {
     expect(propinaSugerida(0)).toBe(0)
   })
 })
+
+describe('plano del salón', () => {
+  it('detecta choques (tocarse por el borde no cuenta) y busca el primer lugar libre', async () => {
+    const { chocan, primerLugarLibre, tamanoPlano } = await import('../../src/domain/plano')
+    const a = { x: 1, y: 1, ancho: 2, alto: 2 }
+    expect(chocan(a, { x: 2, y: 2, ancho: 2, alto: 2 })).toBe(true)
+    expect(chocan(a, { x: 3, y: 1, ancho: 2, alto: 2 })).toBe(false)
+    expect(primerLugarLibre({ ancho: 2, alto: 2 }, [a])).toEqual({ x: 4, y: 1 })
+    expect(primerLugarLibre({ ancho: 3, alto: 2 }, [])).toEqual({ x: 1, y: 1 })
+    expect(tamanoPlano([{ x: 1, y: 1, ancho: 2, alto: 2 }])).toEqual({ ancho: 12, alto: 8 })
+    expect(tamanoPlano([{ x: 14, y: 9, ancho: 4, alto: 2 }])).toEqual({ ancho: 19, alto: 12 })
+  })
+})

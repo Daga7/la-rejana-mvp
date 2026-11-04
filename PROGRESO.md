@@ -16,6 +16,8 @@
 | 8. Asistente de WhatsApp con PDF | ✅ Hecha | `feat(asistente): add whatsapp report assistant with pdf` |
 | Cierre: seguridad, audit, Lighthouse, INFORME | ✅ Hecho | `fix(seguridad): pre-hash passwords and harden api caching`, `perf(web): reach lighthouse 90+ on public pages`, `docs: add final report and closing notes` |
 | 9. Módulo de mesero (después del MVP) | ✅ Hecha | `feat(mesero): add table service and checkout` |
+| 10. Lote 2: plano, mesas, turnos, Pasaporte y propina | ✅ Hecha | `fix(mesas): accept only a 0 or 10% tip`, `feat(turnos): add staff clock-in and admin hours`, `feat(mesas): add floor plan per zone`, `feat(mesas): move, join and split tables`, `feat(pasaporte): add opt-in stamp card and rewards`, `fix(web): refresh salon after table changes`, `test(e2e): cover moving tables, shifts and passport` |
+| 11. Despliegue: Supabase, Railway y Vercel | ✅ Listo para configurar (sin desplegar) | `feat(api): connect through supabase session pooler`, `feat(api): seed and invite first admin at startup`, `perf(api): cap node heap size in docker image`, `fix(web): show only configured oauth providers`, `chore(web): drop railway config for vercel`, `docs: document supabase, railway and vercel deploy` |
 
 ## Fase 1 — qué quedó
 
@@ -98,9 +100,29 @@
 - **Pruebas**: 11 de integración (flujo completo con descuento exacto por receta, permisos por rol y sede, idempotencia, stock insuficiente, cancelaciones, reportes, tiempo real sin datos de domicilio) y 5 unitarias. **Total 146 en verde.** E2E: el mesero abre la mesa, envía la ronda, la recibe lista en vivo, la sirve y la caja cobra la cuenta dividida (8 e2e en verde).
 - **Además**: contraste AA en los chips del personal y límite de ingresos configurable solo fuera de producción (para la suite e2e).
 
+## Fase 10 — lote 2
+
+- **Propina**: 0 o el 10 % exacto del consumo, redondeado a la centena (la mitad sube). La regla está en `packages/shared/src/reglas.ts`: la caja la muestra y la API rechaza cualquier otro valor (D91).
+- **Turnos** (migración `0003_turnos`): entrada y salida desde la barra del personal (un turno abierto por persona), y en `/admin/turnos` los turnos y las horas por persona y sede, con cierre de un turno olvidado y aviso de los de más de 16 h (D87).
+- **Plano** (migración `0004_plano_mesas`): cuadrícula por zona con posición, tamaño y forma de cada mesa, y validación de límites y choques en `domain/plano.ts`. En `/admin/sedes` está el editor por toques; el salón del mesero tiene vista de plano o de lista (D83, D84).
+- **Trasladar, juntar y separar** (migración `0005_juntar_mesas`): con bloqueo, auditoría y aviso en vivo; las rondas y pagos de una cuenta fundida pasan a la principal, que la caja cobra como una sola (D85, D86, D92). Arreglo: el salón se refresca solo después de liberar o mover una mesa.
+- **Pasaporte de sellos** (migración `0006_pasaporte`): `/pasaporte` para el cliente (inscripción, tarjeta, código, historial y salida con borrado), sello y canje en la caja (el premio entra como ronda de precio 0), sello automático en los domicilios pagados y `/admin/pasaporte` para la configuración. Ley 1581 y aviso de privacidad actualizados (D88–D90).
+- **Seed**: mesas ubicadas en el plano, un mesero en Normandía, mesas ocupadas, turnos de la semana y el Pasaporte con la clienta de prueba (D94).
+- **Pruebas**: 18 nuevas de la API (turnos, plano, mover y juntar, propina y 8 del Pasaporte) y 3 e2e nuevas (mover y juntar mesas, turnos y Pasaporte). Total: **164 de la API y 11 e2e** al cerrar el lote.
+
+## Fase 11 — despliegue (Supabase, Railway y Vercel)
+
+- **Conexión** (`adapters/db/cliente.ts`): TLS con certificado opcional (`DATABASE_SSL_CA`), limpieza de `sslmode` en la URL, `statement_timeout` con `SET` al abrir cada conexión (Supavisor ignoraba el parámetro de arranque), manejo de errores de conexiones inactivas y `DATABASE_POOL_MAX` (D96–D99).
+- **Arranque sin consola** (`src/arranque.ts`): `SEED_AL_INICIAR` (solo con la base vacía, con candado y confirmación en producción) y `ADMIN_INICIAL_CORREO` (invitación de 2 horas, sin repetir). El seed se separó de su script (`sembrar-cli.ts`) y va en `dist/seed.js` (D101, D102).
+- **Railway**: `apps/api/railway.json` se queda (migraciones en el `preDeployCommand`), `TRUST_PROXY_HOPS=1` verificado con pruebas, heap de Node acotado en la imagen (D100, D103, D104). Se quitó `apps/web/railway.json`.
+- **Vercel**: las pantallas de acceso solo muestran Google o Apple si la API tiene sus credenciales (D105). Build verificado en un clon limpio con Node 24, Root Directory `apps/web` y pnpm 11 por Corepack (D106).
+- **Verificación con el pooler real de Supabase** (Supavisor 2.9.13 en Docker, modo sesión y TLS): conexión cifrada con y sin verificación (con una CA equivocada falla), URL con `sslmode=require`, migraciones de Drizzle, **la suite completa de la API (183 pruebas)**, el build de producción arrancando con el seed y el inicio de sesión del admin de prueba, la invitación del primer admin en una base vacía y que reiniciar no la repita.
+- **Memoria de la API** (imagen Docker, contra el pooler): 83 MB en reposo y 141 MB con 1.000 solicitudes por segundo; sin el límite eran 209 y 740 MB (D104).
+- **Pruebas**: 19 nuevas (conexión, variables, arranque e IP detrás del proxy de Railway). **Total: 183 de la API.**
+
 ## Siguiente paso exacto
 
-**MVP y módulo de mesero listos.** Cuando Daniel cree el repositorio en GitHub y la cuenta de Railway (y Vercel, si la quiere): conectar el remoto, hacer el primer push (solo cuando él lo pida) y desplegar según el README; luego crear el primer administrador con `node dist/crear-admin.js`. Después: MFA para el personal y el administrador, monitoreo y lo que quedó del mesero en PENDIENTES (plano con posición de las mesas, trasladar o juntar mesas, turnos).
+**Todo listo para desplegar; no hice `git push`.** Daniel revisa y sube los commits. Luego configura Supabase, Railway y Vercel desde la tableta, siguiendo el [README](README.md#desplegar) (variables exactas por servicio y lista para antes de abrir al público). Después: MFA para el personal y el administrador, monitoreo, repetir Lighthouse con la URL real y definir el reparto de la propina.
 
 ## Cómo verificar lo hecho
 

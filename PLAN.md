@@ -48,6 +48,8 @@ Meta WhatsApp ──webhook firmado──▶ api
 | 8 | WhatsApp + PDF | Webhook firmado, lista blanca de admins, nota de voz → STT → IA → catálogo cerrado de reportes → PDF con gráficas → respuesta por el chat |
 | — | Cierre | Revisión de seguridad, `pnpm audit`, Lighthouse, `INFORME.md` |
 | 9 | Mesero (después del MVP) | Salón por sede con mesas y zonas, cuentas de mesa con rondas a la cocina (descuento por receta), servir en vivo, pedir la cuenta, cobro en la caja con pagos divididos y propina voluntaria, mesas administradas por sede, permisos por rol y sede, tests |
+| 10 | Lote 2 | Plano por zona (el admin ubica las mesas; el mesero opera desde el plano en el celular), trasladar, juntar y separar mesas (auditado, sin perder rondas ni pagos, en vivo), turnos con entrada y salida y horas por persona y sede, Pasaporte de sellos (premio configurable, sellos y canje en la caja, vista del cliente, Ley 1581), propina de 0 o 10 % exacto, e2e |
+| 11 | Despliegue | Supabase (pooler en modo sesión con TLS), Railway (API con migraciones en el pre-deploy), Vercel (web), datos de prueba y primer administrador sin consola, memoria de la API medida y acotada |
 
 ## 3. Modelo de datos (PostgreSQL)
 
@@ -75,8 +77,10 @@ Convenciones: `uuid` como PK (`gen_random_uuid()`), dinero en **pesos enteros (C
 Un producto está **agotado** si su interruptor está apagado o si `min(floor(stock_insumo / cantidad_receta)) < 1` para alguno de sus insumos en esa sede.
 
 ### Pedidos y domicilios
-- **mesas** (fase 9): id, sede_id, numero (único por sede), zona, puestos, activa.
-- **cuentas_mesa** (fase 9): id, sede_id, mesa_id, mesero_id, comensales, estado (`abierta|cerrada|cancelada`; a lo sumo una abierta por mesa), cuenta_pedida_en, propina, estado_pago, abierta_en, cerrada_en, cerrada_por.
+- **mesas** (fases 9 y 10): id, sede_id, numero (único por sede), zona, puestos, activa, pos_x, pos_y, ancho, alto, forma (`cuadrada|redonda|rectangular`) y cuenta_unida_id (mesa juntada a otra cuenta).
+- **cuentas_mesa** (fases 9 y 10): id, sede_id, mesa_id, mesero_id, comensales, estado (`abierta|cerrada|cancelada|unida`; a lo sumo una abierta por mesa), unida_a (cuenta en la que se fundió), cuenta_pedida_en, propina, estado_pago, abierta_en, cerrada_en, cerrada_por.
+- **turnos** (fase 10): id, usuario_id, sede_id, entrada_en, salida_en, cerrado_por (uno abierto por persona).
+- **pasaporte_config**, **pasaportes** (cliente, código, aceptado_en, version_terminos), **sellos** (únicos por pedido y por cuenta; vencen según la configuración) y **canjes_pasaporte** (fase 10).
 - **pedidos**: id, numero (secuencia), sede_id, canal (`domicilio|mesa`; en mesa: cuenta_id + ronda, sin datos de entrega), cliente_id (null = invitado), estado (`recibido → en_preparacion → listo → en_camino → entregado`, o `cancelado`), contacto_nombre, contacto_telefono, direccion, direccion_detalle, barrio, lat, lng, notas, metodo_pago (`efectivo|qr`), paga_con, subtotal, costo_envio, total, estado_pago (`pendiente|pagado`), domiciliario_id, recorrido_id, token_seguimiento_hash (invitados), clave_idempotencia, motivo_cancelacion, timestamps de cada hito, cerrado_en, cerrado_por.
 - **pedido_items**: id, pedido_id, producto_id, nombre y precio_unitario (copias históricas), cantidad, notas, subtotal.
 - **pedido_eventos**: id, pedido_id, estado, actor_id, actor_rol, nota, creado_en (historial).
@@ -101,7 +105,9 @@ Un producto está **agotado** si su interruptor está apagado o si `min(floor(st
 | Domiciliario | `GET /api/domiciliario/pedidos`, `POST /api/domiciliario/ruta`, `/recorridos`, `/recorridos/:id/finalizar`, `/ubicacion`, `POST /api/pedidos/:id/entregar` |
 | Push / tiempo real | `GET /api/push/clave-publica`, `POST/DELETE /api/push/suscripciones`, `POST /api/realtime/ticket` |
 | Admin | CRUD sedes, categorías, productos (+ receta y menú por sede), insumos, inventario (ajustes/entradas), empleados (invitar, rol, sede, activo), reportes, tablero, auditoría, buzón, asistente |
-| Mesas (fase 9) | `GET /api/mesas/:sede/salon`, `POST /api/mesas/:sede/cuentas`, `GET/PATCH /api/cuentas/:id`, `POST /api/cuentas/:id/rondas` (Idempotency-Key), `/liberar`, `/cobrar` · admin: `GET/POST /api/admin/sedes/:id/mesas`, `PUT /api/admin/mesas/:id` |
+| Mesas (fases 9 y 10) | `GET /api/mesas/:sede/salon`, `POST /api/mesas/:sede/cuentas`, `GET/PATCH /api/cuentas/:id`, `POST /api/cuentas/:id/rondas` (Idempotency-Key), `/liberar`, `/cobrar`, `/trasladar`, `/juntar`, `/separar` · admin: `GET/POST /api/admin/sedes/:id/mesas`, `PUT /api/admin/mesas/:id` (con posición en el plano) |
+| Turnos (fase 10) | `GET /api/turnos/actual`, `POST /api/turnos/entrada`, `/salida` · admin: `GET /api/admin/turnos`, `POST /api/admin/turnos/:id/cerrar` |
+| Pasaporte (fase 10) | `GET /api/pasaporte/programa` (público) · cliente: `GET/DELETE /api/pasaporte`, `POST /api/pasaporte/inscripcion`, `/codigo` · caja: `GET /api/pasaporte/codigos/:codigo`, `POST /api/pasaporte/sellos`, `/canjes` · admin: `GET/PUT /api/admin/pasaporte` |
 | Buzón | `POST /api/buzon` |
 | WhatsApp | `GET/POST /api/webhooks/whatsapp` (verificación + firma `X-Hub-Signature-256`) |
 
@@ -116,5 +122,7 @@ bcrypt costo 12 · JWT de acceso 15 min ligado a una sesión revocable · refres
 
 ## 7. Despliegue
 
-- **Railway**: servicio `api` (Dockerfile, `preDeployCommand` = migraciones) + PostgreSQL gestionado; servicio `web` (Dockerfile standalone) **o** Vercel (raíz `apps/web`).
+- **Supabase**: PostgreSQL por el pooler compartido en modo sesión (Supavisor, IPv4) con TLS (`DATABASE_SSL=true`, certificado opcional).
+- **Railway**: servicio `api` con `apps/api/railway.json` (Dockerfile, `preDeployCommand` = migraciones, health check `/api/salud`). Datos de prueba (`SEED_AL_INICIAR`) y primer administrador (`ADMIN_INICIAL_CORREO`) sin consola.
+- **Vercel**: la web con Root Directory `apps/web` y pnpm 11 por Corepack. El paso a paso y las variables exactas están en el README.
 - Variables documentadas en `.env.example`. Sin credenciales se usan adaptadores mock (correo a consola/Mailpit, push a consola, WhatsApp a disco, IA por reglas).

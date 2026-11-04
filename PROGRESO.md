@@ -8,8 +8,8 @@
 |---|---|---|
 | 1. Base, hexagonal, BD, PWA, despliegue | ✅ Hecha | `chore: scaffold monorepo with api, web pwa and db` |
 | 2. Autenticación completa | ✅ Hecha | `feat(auth): add registration, sessions, oauth and invitations` |
-| 3. Menú, recetas e inventario | ⏳ Siguiente | — |
-| 4. Pedidos a domicilio, estados y push | Pendiente | — |
+| 3. Menú, recetas e inventario | ✅ Hecha | `feat(menu): add per-branch menu, recipes and inventory` |
+| 4. Pedidos a domicilio, estados y push | ⏳ Siguiente | — |
 | 5. Domiciliario: tiempo real y ruta óptima | Pendiente | — |
 | 6. Cocina, caja y admin | Pendiente | — |
 | 7. Buzón de quejas | Pendiente | — |
@@ -35,9 +35,18 @@
 - Web: `/ingresar`, `/registro`, `/verificar`, `/recuperar`, `/invitacion`, `/cuenta`, `/mesero` (provisional), guardián `RequiereSesion`, cliente API con CSRF y refresco automático.
 - Pruebas: 24 de integración de autenticación (total 53 en verde). Prueba e2e manual: registro por el proxy de la web con el correo real en Mailpit.
 
+## Fase 3 — qué quedó
+
+- `application/menu.ts`: sedes públicas (abierta/cerrada en hora de Bogotá), menú por sede con precio por sede, **agotado automático** (`maxUnidades` = insumo más escaso según receta; interruptor manual por sede), CRUD de categorías, productos (slug único), recetas y menú por sede, CRUD de sedes. Cambios de precio, receta y menú quedan en auditoría.
+- `application/inventario.ts`: inventario por sede con capacidad por producto y alertas, entradas (sumar) y conteos físicos (fijar) con movimientos y auditoría, stock mínimo configurable, alertas en tiempo real, CRUD de insumos (no deja cambiar la unidad con existencias).
+- Rutas `adapters/http/rutas/menu.ts` (públicas, `/api/admin/*` e `/api/inventario/:sede`).
+- Web: grupo `(cliente)` con encabezado, navegación inferior y botón de carrito animado; tienda `/menu` (portada, selector de sede con confirmación si el carrito es de otra sede, categorías fijas, tarjetas con agotado y «¡quedan N!», hoja de producto con cantidad y notas, esqueletos de carga, barra flotante); carrito persistente en `localStorage` (`lib/carrito.ts`) con clave de idempotencia para el checkout.
+- Pruebas: 14 nuevas de menú/inventario/permisos (total 67 en verde).
+- Las pantallas de administración de catálogo e inventario se hacen en la fase 6 (la API ya está lista).
+
 ## Siguiente paso exacto
 
-**Fase 3 — Menú, recetas e inventario.** Crear `apps/api/src/application/menu.ts` (menú público por sede con `maxUnidades` y `agotado` calculados desde el inventario; CRUD admin de categorías, productos, receta y menú por sede) y `application/inventario.ts` (listado por sede, entradas y ajustes con movimientos, stock mínimo, alertas), sus rutas y pruebas (descuento por receta va en la fase 4 con los pedidos). En la web: tienda `/menu` (selector de sede, categorías, tarjetas con agotado, carrito en `zustand` persistente) y pantallas de admin de catálogo/inventario (pueden quedar básicas y completarse en la fase 6).
+**Fase 4 — Pedidos a domicilio, estados y push.** Crear `apps/api/src/application/pedidos.ts`: `crear` (valida sede activa/abierta y cobertura, precios del servidor, idempotencia por `Idempotency-Key`, transacción que bloquea filas de inventario y descuenta por receta; invitado recibe token de seguimiento), `obtener` (dueño, invitado con `x-pedido-token` o personal de la sede), `cancelar` (cliente solo en «recibido»; personal con reposición según estado), `cambiarEstado` (máquina de estados + permisos de rol/sede), notificaciones push en cada cambio y eventos Socket.IO. Rutas `/api/pedidos*`, `/api/mis-pedidos`, `/api/push/*`, `/api/realtime/ticket` y el servidor Socket.IO. Pruebas de descuento/reposición, concurrencia sin sobreventa e idempotencia. En la web: `/carrito`, `/checkout` (mapa Leaflet con pin, datos mínimos del invitado, efectivo/QR), `/pedido/[id]` (estados animados + push) y `/mis-pedidos`.
 
 ## Cómo verificar lo hecho
 

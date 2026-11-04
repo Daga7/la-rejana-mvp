@@ -5,6 +5,7 @@ import type { Logger } from './ports/servicios'
 import { crearLogger } from './adapters/http/logger'
 import { crearServidor } from './adapters/http/servidor'
 import { rutasAuth } from './adapters/http/rutas/auth'
+import { rutasMenu } from './adapters/http/rutas/menu'
 import { rutasSalud } from './adapters/http/rutas/salud'
 
 export interface AppLista {
@@ -25,6 +26,7 @@ export async function crearApp(
 
   rutasSalud(app, c)
   rutasAuth(app, c)
+  rutasMenu(app, c)
 
   await app.ready()
   return {

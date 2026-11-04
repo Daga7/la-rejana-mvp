@@ -3,6 +3,8 @@ import { jwtVerify, SignJWT } from 'jose'
 import type { ProveedorOAuth } from '@rejana/shared'
 import type { Env } from './config/env'
 import { crearCasosAuth } from './application/auth'
+import { crearCasosInventario } from './application/inventario'
+import { crearCasosMenu } from './application/menu'
 import { proveedorApple, proveedorGoogle, proveedorSimulado } from './adapters/oauth/proveedores'
 import { conectarBD, type ConexionBD } from './adapters/db/cliente'
 import { unidadDeTrabajoPostgres } from './adapters/db/repos'
@@ -57,6 +59,8 @@ export interface Contenedor {
 
 export interface Casos {
   auth: ReturnType<typeof crearCasosAuth>
+  menu: ReturnType<typeof crearCasosMenu>
+  inventario: ReturnType<typeof crearCasosInventario>
 }
 
 export interface Sobrescrituras {
@@ -123,6 +127,8 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
 
   const casos: Casos = {
     auth: crearCasosAuth({ uow, reloj, cripto, hasher, filtradas, tokens, correo, log, webOrigin: env.WEB_ORIGIN, proveedores }),
+    menu: crearCasosMenu({ uow, reloj, eventos }),
+    inventario: crearCasosInventario({ uow, reloj, eventos, log }),
   }
 
   return { env, conexion, uow, log, reloj, cripto, hasher, filtradas, tokens, correo, push, eventos, mapas, geocoder, proveedores, firmarCodigoSimulado, casos }

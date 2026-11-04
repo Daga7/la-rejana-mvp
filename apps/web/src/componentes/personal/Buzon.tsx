@@ -2,7 +2,7 @@
 
 import { buzonSchema, type TipoBuzon } from '@rejana/shared'
 import { EyeOff, Lightbulb, MessageSquareWarning, ShieldCheck } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useState } from 'react'
 import { avisar } from '@/componentes/Avisos'
 import { api, ErrorApi } from '@/lib/api'
@@ -41,7 +41,7 @@ export function BuzonEmpleado() {
       </div>
       <AnimatePresence mode="wait">
         {enviado ? (
-          <motion.div key="ok" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="sticker p-6 text-center text-tinta">
+          <m.div key="ok" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="sticker p-6 text-center text-tinta">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/marca/sticker-celebra-fijo.webp" alt="" width={120} height={120} className="mx-auto" />
             <p className="mt-2 text-xl font-black">¡Mensaje enviado!</p>
@@ -49,9 +49,9 @@ export function BuzonEmpleado() {
             <button className="btn btn-amarillo mt-4" onClick={() => setEnviado(false)}>
               Escribir otro
             </button>
-          </motion.div>
+          </m.div>
         ) : (
-          <motion.form key="form" onSubmit={enviar} className="sticker grid gap-4 p-5 text-tinta" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <m.form key="form" onSubmit={enviar} className="sticker grid gap-4 p-5 text-tinta" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Tipo de mensaje">
               {(
                 [
@@ -93,7 +93,7 @@ export function BuzonEmpleado() {
             <p className="flex items-center gap-1.5 text-xs text-tinta-soft">
               <ShieldCheck size={14} aria-hidden /> Solo el administrador lee el buzón.
             </p>
-          </motion.form>
+          </m.form>
         )}
       </AnimatePresence>
     </div>

@@ -66,7 +66,7 @@ export function useTic(ms = 30_000) {
 export function Transcurrido({ desde, alerta = 15, critico = 25 }: { desde: string; alerta?: number; critico?: number }) {
   useTic()
   const min = minutosDesde(desde)
-  const clase = min >= critico ? 'bg-rojo text-white' : min >= alerta ? 'bg-naranja text-tinta' : 'bg-crema-200 text-tinta'
+  const clase = min >= critico ? 'bg-rojo-500 text-white' : min >= alerta ? 'bg-naranja text-tinta' : 'bg-crema-200 text-tinta'
   return (
     <span className={`chip border-2 border-tinta tabular-nums ${clase}`} title="Minutos desde que llegó el pedido">
       {min} min

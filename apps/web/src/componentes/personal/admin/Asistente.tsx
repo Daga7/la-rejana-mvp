@@ -2,7 +2,7 @@
 
 import type { SolicitudReporte } from '@rejana/shared'
 import { Download, FileText, Loader2, MessageCircle, Mic, Send, Sparkles } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { api, ErrorApi, obtener } from '@/lib/api'
@@ -110,7 +110,7 @@ export function AsistenteAdmin() {
           )}
           <AnimatePresence mode="wait">
             {resultado && (
-              <motion.div key={resultado.tipo + (resultado.solicitud?.tipo ?? '')} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid gap-3 rounded-2xl border-2 border-tinta bg-white p-4" role="status">
+              <m.div key={resultado.tipo + (resultado.solicitud?.tipo ?? '')} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid gap-3 rounded-2xl border-2 border-tinta bg-white p-4" role="status">
                 {resultado.solicitud && (
                   <p className="text-xs font-bold uppercase tracking-wider text-tinta-soft">
                     Entendí: <span className="normal-case text-tinta">{describir(resultado.solicitud)}</span>
@@ -122,7 +122,7 @@ export function AsistenteAdmin() {
                     <FileText size={18} aria-hidden /> Descargar {resultado.nombreArchivo}
                   </a>
                 )}
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </section>

@@ -2,7 +2,7 @@
 
 import { cop, FLUJO_PEDIDO, hora, NOMBRE_METODO_PAGO, type EstadoPedido, type PedidoDTO, type SedePublicaDTO, type UbicacionEnVivoDTO } from '@rejana/shared'
 import { Bell, BellRing, Check, MessageCircle, Phone, RefreshCw, XCircle } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -37,14 +37,14 @@ function Ilustracion({ estado }: { estado: EstadoPedido }) {
   const arte = ARTE[estado]
   return (
     <AnimatePresence mode="wait">
-      <motion.div key={estado} initial={{ opacity: 0, scale: 0.9, rotate: -3 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }} className="mx-auto w-44 sm:w-52">
+      <m.div key={estado} initial={{ opacity: 0, scale: 0.9, rotate: -3 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }} className="mx-auto w-44 sm:w-52">
         {arte.video && !reducir ? (
           <video src={arte.video} poster={arte.src} autoPlay muted loop playsInline disablePictureInPicture aria-label={arte.alt} className="aspect-square w-full rounded-3xl border-2 border-tinta object-cover shadow-sticker" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={arte.src} alt={arte.alt} width={208} height={208} className="aspect-square w-full rounded-3xl object-cover" />
         )}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   )
 }
@@ -54,19 +54,19 @@ function Pasos({ estado }: { estado: EstadoPedido }) {
   return (
     <ol className="relative mt-6 grid grid-cols-5 gap-1" aria-label="Avance del pedido">
       <div className="absolute left-[10%] right-[10%] top-4 h-1 rounded-full bg-white/15" aria-hidden />
-      <motion.div className="absolute left-[10%] top-4 h-1 rounded-full bg-amarillo" initial={false} animate={{ width: `${Math.max(0, actual) * 20}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} aria-hidden />
+      <m.div className="absolute left-[10%] top-4 h-1 rounded-full bg-amarillo" initial={false} animate={{ width: `${Math.max(0, actual) * 20}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} aria-hidden />
       {PASOS.map((p, i) => {
         const hecho = i < actual
         const ahora = i === actual
         return (
           <li key={p.estado} className="relative z-10 flex flex-col items-center gap-1.5 text-center" aria-current={ahora ? 'step' : undefined}>
-            <motion.span
+            <m.span
               initial={false}
               animate={{ scale: ahora ? 1.15 : 1 }}
-              className={`grid h-9 w-9 place-items-center rounded-full border-2 border-tinta text-sm font-black ${hecho ? 'bg-amarillo text-tinta' : ahora ? 'animate-latido bg-rosa text-white' : 'bg-noche-700 text-noche-300'}`}
+              className={`grid h-9 w-9 place-items-center rounded-full border-2 border-tinta text-sm font-black ${hecho ? 'bg-amarillo text-tinta' : ahora ? 'animate-latido bg-rosa-500 text-white' : 'bg-noche-700 text-noche-300'}`}
             >
               {hecho ? <Check size={16} strokeWidth={3} /> : i + 1}
-            </motion.span>
+            </m.span>
             <span className={`text-[11px] font-bold leading-tight sm:text-xs ${ahora ? 'text-white' : 'text-noche-300'}`}>{p.titulo}</span>
           </li>
         )
@@ -154,9 +154,9 @@ export function Seguimiento({ id }: { id: string }) {
           {arte.titulo}
         </h1>
         {pedido.estado === 'en_camino' && eta !== null && (
-          <motion.p initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-2 text-lg font-black text-amarillo">
+          <m.p initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-2 text-lg font-black text-amarillo">
             Llega en unos {eta} min
-          </motion.p>
+          </m.p>
         )}
         {pedido.estado === 'cancelado' && pedido.motivoCancelacion && <p className="mt-2 text-sm text-noche-300">Motivo: {pedido.motivoCancelacion}</p>}
         {pedido.estado !== 'cancelado' && <Pasos estado={pedido.estado} />}
@@ -272,9 +272,9 @@ function HojaCancelar({ abierta, onCerrar, id, token, onListo }: { abierta: bool
       <p className="text-sm">Puedes cancelarlo mientras la cocina no haya empezado.</p>
       <fieldset className="mt-4 grid gap-2">
         <legend className="etiqueta">Motivo</legend>
-        {['Me equivoqué en el pedido', 'Me equivoqué de dirección', 'Ya no lo necesito', 'Otro motivo'].map((m) => (
-          <label key={m} className="flex items-center gap-3 rounded-xl border-2 border-tinta/20 bg-white px-3 py-2.5 text-sm">
-            <input type="radio" name="motivo" className="h-4 w-4 accent-rosa" checked={motivo === m} onChange={() => setMotivo(m)} /> {m}
+        {['Me equivoqué en el pedido', 'Me equivoqué de dirección', 'Ya no lo necesito', 'Otro motivo'].map((opcion) => (
+          <label key={opcion} className="flex items-center gap-3 rounded-xl border-2 border-tinta/20 bg-white px-3 py-2.5 text-sm">
+            <input type="radio" name="motivo" className="h-4 w-4 accent-rosa" checked={motivo === opcion} onChange={() => setMotivo(opcion)} /> {opcion}
           </label>
         ))}
       </fieldset>

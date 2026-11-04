@@ -82,7 +82,7 @@ export function AceptarInvitacion() {
       <div className="grid gap-4 text-center">
         <p className="font-bold">Esta invitación no es válida, ya se usó o venció.</p>
         <p className="text-sm text-tinta-soft">Pídele al administrador que te envíe una nueva. El enlace solo sirve una vez y por 72 horas.</p>
-        <Link href="/" className="btn btn-crema">
+        <Link prefetch={false} href="/" className="btn btn-crema">
           Ir al inicio
         </Link>
       </div>
@@ -114,7 +114,7 @@ export function AceptarInvitacion() {
             <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-rosa" checked={datos.aceptaPrivacidad} onChange={(e) => setDatos({ ...datos, aceptaPrivacidad: e.target.checked })} />
             <span>
               Autorizo el tratamiento de mis datos según el{' '}
-              <Link href="/privacidad" target="_blank" className="font-bold text-rosa-600 underline">
+              <Link prefetch={false} href="/privacidad" target="_blank" className="font-bold text-rosa-600 underline">
                 aviso de privacidad
               </Link>
               .

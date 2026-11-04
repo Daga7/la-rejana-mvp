@@ -51,7 +51,7 @@ export function FormularioIngreso() {
         <Campo etiqueta="Correo" type="email" name="correo" autoComplete="email" inputMode="email" value={correo} onChange={(e) => setCorreo(e.target.value)} error={errores.correo} required />
         <CampoClave etiqueta="Contraseña" name="clave" autoComplete="current-password" value={clave} onChange={(e) => setClave(e.target.value)} error={errores.clave} required />
         <div className="-mt-1 text-right">
-          <Link href="/recuperar" className="text-sm font-semibold text-rosa-600 underline-offset-4 hover:underline">
+          <Link prefetch={false} href="/recuperar" className="text-sm font-semibold text-rosa-600 underline-offset-4 hover:underline">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
@@ -61,11 +61,11 @@ export function FormularioIngreso() {
       <BotonesOAuth volver={volver ?? undefined} />
       <p className="mt-5 text-center text-sm">
         ¿No tienes cuenta?{' '}
-        <Link href={`/registro${volver ? `?volver=${encodeURIComponent(volver)}` : ''}`} className="font-bold text-rosa-600 underline underline-offset-4">
+        <Link prefetch={false} href={`/registro${volver ? `?volver=${encodeURIComponent(volver)}` : ''}`} className="font-bold text-rosa-600 underline underline-offset-4">
           Regístrate
         </Link>{' '}
         o{' '}
-        <Link href="/menu" className="font-bold underline underline-offset-4">
+        <Link prefetch={false} href="/menu" className="font-bold underline underline-offset-4">
           pide como invitado
         </Link>
       </p>

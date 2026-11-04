@@ -1,8 +1,8 @@
 import path from 'node:path'
 import type { NextConfig } from 'next'
 
-// Raíz del monorepo. En local, los scripts cargan el .env de la raíz con `node --env-file-if-exists`
-// (así lo heredan todos los procesos de Next); en Railway/Vercel las variables vienen del entorno.
+// Raíz del monorepo. En local, `scripts/next-con-env.mjs` carga el .env de la raíz antes de arrancar Next
+// (así lo heredan todos sus procesos); en Railway/Vercel las variables vienen del entorno.
 const raiz = path.resolve(process.cwd(), '../..')
 
 const cabecerasSeguridad = [
@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   outputFileTracingRoot: raiz,
   transpilePackages: ['@rejana/shared'],
+  // Importa solo los módulos usados de Motion (sin esto, el barril trae las animaciones de layout a la primera carga).
+  experimental: { optimizePackageImports: ['motion', 'framer-motion'] },
   poweredByHeader: false,
   reactStrictMode: true,
   turbopack: {

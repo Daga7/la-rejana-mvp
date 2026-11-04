@@ -1,8 +1,8 @@
 'use client'
 
 import { Download, Share, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
+import { usePresencia } from '@/lib/presencia'
 
 interface EventoInstalacion extends Event {
   prompt: () => Promise<void>
@@ -14,6 +14,7 @@ export function InstalarApp({ className = '' }: { className?: string }) {
   const [evento, setEvento] = useState<EventoInstalacion | null>(null)
   const [ios, setIos] = useState(false)
   const [verAyuda, setVerAyuda] = useState(false)
+  const ayuda = usePresencia(verAyuda)
 
   useEffect(() => {
     const instalada = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone
@@ -44,32 +45,27 @@ export function InstalarApp({ className = '' }: { className?: string }) {
       >
         <Download size={16} aria-hidden /> Instalar la app
       </button>
-      <AnimatePresence>
-        {verAyuda && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 30 }}
-            className="fixed inset-x-3 bottom-3 z-[80] rounded-2xl border-2 border-tinta bg-crema p-4 pb-seguro text-tinta shadow-sticker-lg"
-            role="dialog"
-            aria-label="Cómo instalar en iPhone"
-          >
-            <button className="absolute right-3 top-3 rounded-full p-1" onClick={() => setVerAyuda(false)} aria-label="Cerrar">
-              <X size={18} />
-            </button>
-            <p className="font-extrabold">Instálala en tu iPhone</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
-              <li>
-                Toca <Share size={14} className="inline" aria-label="Compartir" /> <b>Compartir</b> en Safari.
-              </li>
-              <li>
-                Elige <b>Agregar a pantalla de inicio</b>.
-              </li>
-              <li>Ábrela desde el ícono: así también te llegan los avisos de tu pedido.</li>
-            </ol>
-          </motion.div>
+      {ayuda.montado && (
+        <div
+          className={`fixed inset-x-3 bottom-3 z-[80] rounded-2xl border-2 border-tinta bg-crema p-4 pb-seguro text-tinta shadow-sticker-lg ${ayuda.saliendo ? 'anim-aviso-salir' : 'anim-aviso-entrar'}`}
+          role="dialog"
+          aria-label="Cómo instalar en iPhone"
+        >
+          <button className="absolute right-3 top-3 rounded-full p-1" onClick={() => setVerAyuda(false)} aria-label="Cerrar">
+            <X size={18} />
+          </button>
+          <p className="font-extrabold">Instálala en tu iPhone</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+            <li>
+              Toca <Share size={14} className="inline" aria-label="Compartir" /> <b>Compartir</b> en Safari.
+            </li>
+            <li>
+              Elige <b>Agregar a pantalla de inicio</b>.
+            </li>
+            <li>Ábrela desde el ícono: así también te llegan los avisos de tu pedido.</li>
+          </ol>
+        </div>
         )}
-      </AnimatePresence>
     </div>
   )
 }

@@ -6,10 +6,10 @@ test('un invitado pide a domicilio y sigue su pedido', async ({ page }) => {
   await expect(page).toHaveURL(/\/menu/)
 
   // Agrega dos productos
-  await page.getByRole('button', { name: /^La Callejera,/ }).click()
+  await page.getByRole('button', { name: /^La Callejera / }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Agregar uno' }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Agregar ·/ }).click()
-  await page.getByRole('button', { name: /^Choriperro Clásico,/ }).click()
+  await page.getByRole('button', { name: /^Choriperro Clásico / }).click()
   await page.getByRole('dialog').getByPlaceholder(/sin cebolla/).fill('sin piña')
   await page.getByRole('dialog').getByRole('button', { name: /^Agregar ·/ }).click()
 

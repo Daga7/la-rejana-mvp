@@ -2,7 +2,7 @@
 
 import { cop, enlaceGoogleMaps, enlaceWaze, telefonoLegible, type PedidoDTO, type PlanRutaDTO, type Punto } from '@rejana/shared'
 import { Check, ChefHat, Loader2, MapPinned, Navigation, Phone, Route, Satellite, TriangleAlert } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
@@ -147,11 +147,11 @@ function Lista({ datos, recargar, conectado }: { datos: Datos; recargar: () => v
 
       <AnimatePresence>
         {elegidos.length > 0 && (
-          <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} className="fixed inset-x-4 bottom-4 z-20 mx-auto max-w-3xl">
+          <m.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} className="fixed inset-x-4 bottom-4 z-20 mx-auto max-w-3xl">
             <button className="btn btn-rosa btn-lg w-full" onClick={() => void planear()} disabled={cargando}>
               {cargando ? <Loader2 size={18} className="animate-spin" /> : <Route size={18} aria-hidden />} Planear ruta con {elegidos.length} {elegidos.length === 1 ? 'pedido' : 'pedidos'}
             </button>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 

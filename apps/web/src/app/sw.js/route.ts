@@ -13,8 +13,16 @@ const PRECARGA = ['/offline', '/iconos/icono-192.png', '/iconos/icono.svg', '/ic
 // Solo datos públicos: jamás se guardan respuestas con información personal.
 const API_CACHEABLE = [/^\/api\/sedes$/, /^\/api\/sedes\/[0-9a-f-]+\/menu$/]
 
+// Páginas públicas que funcionan sin conexión desde la primera visita (el menú llega ya renderizado).
+const PAGINAS_INICIALES = ['/', '/menu']
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(ESTATICO).then((c) => c.addAll(PRECARGA)).catch(() => {}))
+  e.waitUntil(
+    Promise.all([
+      caches.open(ESTATICO).then((c) => c.addAll(PRECARGA)),
+      caches.open(PAGINAS).then((c) => c.addAll(PAGINAS_INICIALES)),
+    ]).catch(() => {}),
+  )
 })
 
 self.addEventListener('activate', (e) => {

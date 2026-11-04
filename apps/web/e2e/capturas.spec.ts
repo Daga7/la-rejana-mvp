@@ -5,7 +5,7 @@ test.skip(!process.env.CAPTURAS, 'Solo bajo demanda')
 
 test('capturas del flujo de compra', async ({ page }) => {
   await page.goto('/menu')
-  await page.getByRole('button', { name: /^La Rejana,/ }).click()
+  await page.getByRole('button', { name: /^La Rejana / }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: 'test-results/capturas/1-producto.png' })
   await page.getByRole('dialog').getByRole('button', { name: /^Agregar ·/ }).click()

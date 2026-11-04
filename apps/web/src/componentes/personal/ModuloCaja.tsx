@@ -2,7 +2,7 @@
 
 import { cop, hora, NOMBRE_METODO_PAGO, telefonoLegible, type MetodoPago, type PedidoDTO } from '@rejana/shared'
 import { Banknote, Bike, Check, ChevronDown, Lock, Phone, QrCode, XCircle } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
@@ -85,7 +85,7 @@ export function ModuloCaja() {
             {lista.map((p) => {
               const expandido = abierto === p.id
               return (
-                <motion.li key={p.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="sticker overflow-hidden text-tinta">
+                <m.li key={p.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="sticker overflow-hidden text-tinta">
                   <button className="flex w-full flex-wrap items-center gap-2 p-4 text-left" onClick={() => setAbierto(expandido ? null : p.id)} aria-expanded={expandido}>
                     <span className="text-lg font-black">#{p.numero}</span>
                     <EstadoChip estado={p.estado} />
@@ -100,7 +100,7 @@ export function ModuloCaja() {
                   </button>
                   <AnimatePresence initial={false}>
                     {expandido && (
-                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t-2 border-tinta/10">
+                      <m.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t-2 border-tinta/10">
                         <div className="grid gap-4 p-4 sm:grid-cols-2">
                           <div className="grid gap-1 text-sm">
                             {p.items.map((i) => (
@@ -166,10 +166,10 @@ export function ModuloCaja() {
                             )}
                           </div>
                         </div>
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
-                </motion.li>
+                </m.li>
               )
             })}
           </AnimatePresence>
@@ -224,9 +224,9 @@ function FormCobro({ pedido, onListo }: { pedido: PedidoDTO; onListo: () => void
     >
       <p className="text-3xl font-black">{cop(pedido.total)}</p>
       <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Método">
-        {(['efectivo', 'qr'] as const).map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={metodo === m} onClick={() => setMetodo(m)} className={`flex items-center justify-center gap-2 rounded-2xl border-2 border-tinta p-3 font-bold ${metodo === m ? 'bg-amarillo' : 'bg-white'}`}>
-            {m === 'efectivo' ? <Banknote size={18} /> : <QrCode size={18} />} {NOMBRE_METODO_PAGO[m].split(' ')[0]}
+        {(['efectivo', 'qr'] as const).map((op) => (
+          <button key={op} type="button" role="radio" aria-checked={metodo === op} onClick={() => setMetodo(op)} className={`flex items-center justify-center gap-2 rounded-2xl border-2 border-tinta p-3 font-bold ${metodo === op ? 'bg-amarillo' : 'bg-white'}`}>
+            {op === 'efectivo' ? <Banknote size={18} /> : <QrCode size={18} />} {NOMBRE_METODO_PAGO[op].split(' ')[0]}
           </button>
         ))}
       </div>

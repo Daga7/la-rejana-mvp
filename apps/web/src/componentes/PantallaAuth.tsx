@@ -10,7 +10,7 @@ export function PantallaAuth({ titulo, acento, children, volver = '/' }: { titul
       <Estrellas cantidad={50} />
       <Banderines />
       <div className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
-        <Link href={volver} className="btn btn-fantasma btn-sm -ml-3 text-noche-300">
+        <Link prefetch={false} href={volver} className="btn btn-fantasma btn-sm -ml-3 text-noche-300">
           <ArrowLeft size={16} aria-hidden /> Volver
         </Link>
         <div className="mt-2 text-center">

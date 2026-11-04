@@ -2,7 +2,7 @@ import { NOMBRE_ESTADO, type EstadoPedido } from '@rejana/shared'
 
 const COLOR: Record<EstadoPedido, string> = {
   recibido: 'bg-azul-100 text-azul',
-  en_preparacion: 'bg-naranja-100 text-naranja',
+  en_preparacion: 'bg-naranja-100 text-naranja-700',
   listo: 'bg-amarillo-100 text-amarillo-600',
   en_camino: 'bg-turquesa-100 text-turquesa-600',
   entregado: 'bg-verde-100 text-verde',

@@ -24,6 +24,7 @@
   --color-tinta-soft: #4a4658;
 
   --color-rosa: #e8237d;
+  --color-rosa-500: #d81b72; /* fondo con texto blanco (AA 4.86:1) */
   --color-rosa-600: #c4126a;
   --color-rosa-100: #fde3ef;
   --color-amarillo: #ffc93c;
@@ -36,9 +37,11 @@
   --color-morado-100: #ebe1fa;
   --color-naranja: #f7801e;
   --color-naranja-100: #ffe8d2;
+  --color-naranja-700: #a84b00; /* texto naranja sobre claro (AA 5.7:1) */
   --color-azul: #2156d8;
   --color-azul-100: #dde7fb;
   --color-rojo: #e5533d;
+  --color-rojo-500: #cf3f2a; /* fondo con texto blanco (AA 4.78:1) */
   --color-rojo-600: #bf3622;
   --color-rojo-100: #fde2dc;
   --color-verde: #2fa35a;
@@ -91,6 +94,58 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+/* Entradas y salidas de las pantallas públicas (sin Motion: ver lib/presencia.ts). */
+@keyframes entrar-abajo {
+  from {
+    opacity: 0.6;
+    transform: translateY(100%);
+  }
+}
+@keyframes salir-abajo {
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+@keyframes entrar-fundido {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes salir-fundido {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes entrar-aviso {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+@keyframes salir-aviso {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@keyframes entrar-arriba {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+@keyframes rebote {
+  from {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  to {
+    transform: scale(1);
   }
 }
 @keyframes brillo {
@@ -189,7 +244,7 @@
     font-size: 1.05rem;
   }
   .btn-rosa {
-    background: var(--color-rosa);
+    background: var(--color-rosa-500);
     color: #fff;
   }
   .btn-rosa:not(:disabled):hover {
@@ -216,7 +271,7 @@
     color: #fff;
   }
   .btn-rojo {
-    background: var(--color-rojo);
+    background: var(--color-rojo-500);
     color: #fff;
   }
   .btn-morado {
@@ -409,6 +464,30 @@
   /* Entrada animada solo con CSS: el contenido es visible aunque el JS tarde en cargar. */
   .aparecer {
     animation: subir 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  }
+  .anim-hoja-entrar {
+    animation: entrar-abajo 0.36s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  }
+  .anim-hoja-salir {
+    animation: salir-abajo 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  .anim-fundido-entrar {
+    animation: entrar-fundido 0.2s ease-out both;
+  }
+  .anim-fundido-salir {
+    animation: salir-fundido 0.2s ease-in both;
+  }
+  .anim-aviso-entrar {
+    animation: entrar-aviso 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  }
+  .anim-aviso-salir {
+    animation: salir-aviso 0.2s ease-in both;
+  }
+  .anim-arriba-entrar {
+    animation: entrar-arriba 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  }
+  .anim-rebote {
+    animation: rebote 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   }
 
   .sin-scroll {

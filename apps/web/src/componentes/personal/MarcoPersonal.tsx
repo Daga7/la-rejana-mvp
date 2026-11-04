@@ -6,19 +6,25 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
+import { ProveedorMovimiento } from '@/componentes/ProveedorMovimiento'
 import { RequiereSesion } from '@/componentes/RequiereSesion'
 import { obtener } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 
-/** Marco de los módulos del personal: barra superior con módulo, sede, buzón, cuenta y salir. */
+/**
+ * Marco de los módulos del personal: barra superior con módulo, sede, buzón, cuenta y salir.
+ * Los módulos del personal sí usan Motion (tablero de cocina, caja, ruta), así que se carga aquí.
+ */
 export function MarcoPersonal({ roles, titulo, children, ancho = 'max-w-6xl' }: { roles: Rol[]; titulo: string; children: React.ReactNode; ancho?: string }) {
   return (
-    <RequiereSesion roles={roles}>
-      <Barra titulo={titulo} />
-      <main id="contenido" className={`mx-auto ${ancho} px-4 pb-24 pt-4`}>
-        {children}
-      </main>
-    </RequiereSesion>
+    <ProveedorMovimiento>
+      <RequiereSesion roles={roles}>
+        <Barra titulo={titulo} />
+        <main id="contenido" className={`mx-auto ${ancho} px-4 pb-24 pt-4`}>
+          {children}
+        </main>
+      </RequiereSesion>
+    </ProveedorMovimiento>
   )
 }
 

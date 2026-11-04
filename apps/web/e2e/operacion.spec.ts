@@ -1,4 +1,28 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+
+const BASE = process.env.E2E_URL ?? 'http://localhost:3000'
+
+/** Crea un pedido nuevo como invitado (por la API, a través del proxy de la web). Devuelve su número. */
+async function pedidoNuevo(req: APIRequestContext): Promise<number> {
+  const { token: csrf } = await (await req.get('/api/auth/csrf')).json()
+  const sedes = (await (await req.get('/api/sedes')).json()).sedes as { id: string; slug: string }[]
+  const villaluz = sedes.find((s) => s.slug === 'villaluz')!
+  const menu = await (await req.get(`/api/sedes/${villaluz.id}/menu`)).json()
+  const producto = menu.categorias.flatMap((c: { productos: { id: string; slug: string }[] }) => c.productos).find((p: { slug: string }) => p.slug === 'la-parchada')
+  const creado = await req.post('/api/pedidos', {
+    headers: { 'x-csrf-token': csrf, origin: BASE },
+    data: {
+      sedeId: villaluz.id,
+      items: [{ productoId: producto.id, cantidad: 1 }],
+      contacto: { nombre: 'Prueba Cocina', telefono: '3105557777' },
+      entrega: { direccion: 'Calle 72 # 79-30', lat: 4.6935, lng: -74.1041 },
+      metodoPago: 'efectivo',
+      aceptaPrivacidad: true,
+    },
+  })
+  expect(creado.status()).toBe(201)
+  return (await creado.json()).pedido.numero as number
+}
 
 async function ingresar(page: Page, correo: string) {
   await page.goto('/ingresar')
@@ -35,14 +59,20 @@ test.describe('módulos del personal', () => {
     if (process.env.CAPTURAS) await page.screenshot({ path: 'test-results/capturas/7-inventario.png', fullPage: true })
   })
 
-  test('cocina mueve un pedido con un toque', async ({ page }) => {
+  test('cocina mueve un pedido con un toque', async ({ page, browser }) => {
+    // Pedido propio de la prueba: no depende de que queden pedidos sembrados sin empezar.
+    const invitado = await browser.newContext({ baseURL: BASE })
+    const numero = await pedidoNuevo(invitado.request)
+    await invitado.close()
+
     await ingresar(page, 'cocina.villaluz@larejana.test')
     await expect(page).toHaveURL(/\/cocina$/)
     const nuevos = page.locator('section', { has: page.getByRole('heading', { name: /Nuevos/ }) })
     const parrilla = page.locator('section', { has: page.getByRole('heading', { name: /En la parrilla/ }) })
-    const antes = await parrilla.locator('article').count()
-    await nuevos.getByRole('button', { name: 'Empezar' }).first().click()
-    await expect(parrilla.locator('article')).toHaveCount(antes + 1)
+    const tarjeta = nuevos.locator('article', { hasText: `#${numero}` })
+    await tarjeta.getByRole('button', { name: 'Empezar' }).click()
+    await expect(parrilla.locator('article', { hasText: `#${numero}` })).toBeVisible()
+    await expect(nuevos.locator('article', { hasText: `#${numero}` })).toHaveCount(0)
     if (process.env.CAPTURAS) await page.screenshot({ path: 'test-results/capturas/8-cocina.png', fullPage: true })
   })
 

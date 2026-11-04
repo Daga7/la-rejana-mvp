@@ -1,3 +1,4 @@
+import './zod-navegador'
 import { z } from 'zod'
 import {
   ESTADOS_BUZON,

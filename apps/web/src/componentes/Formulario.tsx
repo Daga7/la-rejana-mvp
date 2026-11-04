@@ -1,7 +1,6 @@
 'use client'
 
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import type { ZodError } from 'zod'
 
@@ -52,20 +51,11 @@ export function Campo({ etiqueta, error, ayuda, oscuro, id, className = '', ...r
 
 export function MensajeCampo({ id, error }: { id?: string; error?: string }) {
   return (
-    <AnimatePresence initial={false}>
-      {error && (
-        <motion.p
-          id={id}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="mt-1 text-sm font-semibold text-rojo-600"
-          role="alert"
-        >
-          {error}
-        </motion.p>
-      )}
-    </AnimatePresence>
+    error && (
+      <p id={id} className="aparecer mt-1 text-sm font-semibold text-rojo-600" role="alert">
+        {error}
+      </p>
+    )
   )
 }
 
@@ -98,19 +88,11 @@ export function BotonEnviar({ cargando, children, className = 'btn-rosa', disabl
 
 export function AlertaError({ mensaje }: { mensaje: string | null }) {
   return (
-    <AnimatePresence initial={false}>
-      {mensaje && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          role="alert"
-          className="rounded-xl border-2 border-tinta bg-rojo-100 px-4 py-3 text-sm font-semibold text-rojo-600"
-        >
-          {mensaje}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    mensaje && (
+      <div role="alert" className="aparecer rounded-xl border-2 border-tinta bg-rojo-100 px-4 py-3 text-sm font-semibold text-rojo-600">
+        {mensaje}
+      </div>
+    )
   )
 }
 

@@ -7,6 +7,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "sideEffects": [
+    "./src/zod-navegador.ts"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests"

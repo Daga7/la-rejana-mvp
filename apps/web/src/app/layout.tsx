@@ -4,13 +4,13 @@ import { headers } from 'next/headers'
 import { Avisos } from '@/componentes/Avisos'
 import { EstadoConexion } from '@/componentes/EstadoConexion'
 import { RegistroServiceWorker } from '@/componentes/RegistroServiceWorker'
-import { ProveedorMovimiento } from '@/componentes/ProveedorMovimiento'
 import { ProveedorConfig } from '@/lib/config-publica'
 import { ProveedorSesion } from '@/lib/sesion'
 import './globals.css'
 
-const poppins = Poppins({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'], variable: '--fuente-poppins', display: 'swap' })
-const lora = Lora({ subsets: ['latin'], weight: ['600', '700'], style: ['italic'], variable: '--fuente-lora', display: 'swap' })
+// Solo los pesos que usa la interfaz (cada peso es un archivo que se precarga en todas las páginas).
+const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600', '700', '800', '900'], variable: '--fuente-poppins', display: 'swap' })
+const lora = Lora({ subsets: ['latin'], weight: ['700'], style: ['italic'], variable: '--fuente-lora', display: 'swap' })
 
 const SPLASH: [number, number, number][] = [
   [375, 667, 2],
@@ -67,13 +67,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Saltar al contenido
         </a>
         <ProveedorConfig valor={config}>
-        <ProveedorMovimiento>
-        <ProveedorSesion>
-          <EstadoConexion />
-          {children}
-          <Avisos />
-        </ProveedorSesion>
-        </ProveedorMovimiento>
+          <ProveedorSesion>
+            <EstadoConexion />
+            {children}
+            <Avisos />
+          </ProveedorSesion>
         </ProveedorConfig>
         <RegistroServiceWorker />
       </body>

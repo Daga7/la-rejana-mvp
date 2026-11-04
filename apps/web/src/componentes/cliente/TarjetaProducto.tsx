@@ -2,18 +2,16 @@
 
 import { cop, type ProductoMenuDTO } from '@rejana/shared'
 import { Plus } from 'lucide-react'
-import { motion } from 'motion/react'
+import { memo } from 'react'
 
-export function TarjetaProducto({ producto, onElegir, prioridad }: { producto: ProductoMenuDTO; onElegir: () => void; prioridad?: boolean }) {
+/** Memorizada: los renders del menú (sesión, carrito, revalidaciones) no vuelven a pintar cada tarjeta. */
+export const TarjetaProducto = memo(function TarjetaProducto({ producto, onElegir, prioridad }: { producto: ProductoMenuDTO; onElegir: (p: ProductoMenuDTO) => void; prioridad?: boolean }) {
   const pocas = !producto.agotado && producto.maxUnidades !== null && producto.maxUnidades <= 5
   return (
-    <motion.button
-      layout
-      whileTap={producto.agotado ? undefined : { scale: 0.97 }}
-      onClick={onElegir}
+    <button
+      onClick={() => onElegir(producto)}
       disabled={producto.agotado}
-      className="sticker group flex w-full items-stretch gap-3 overflow-hidden p-0 text-left text-tinta transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
-      aria-label={`${producto.nombre}, ${producto.agotado ? 'agotado' : cop(producto.precio)}`}
+      className="sticker group flex w-full items-stretch gap-3 overflow-hidden p-0 text-left text-tinta transition hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:scale-100"
     >
       <div className="relative w-28 shrink-0 border-r-2 border-tinta sm:w-36">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -26,7 +24,7 @@ export function TarjetaProducto({ producto, onElegir, prioridad }: { producto: P
           fetchPriority={prioridad ? 'high' : 'auto'}
           className={`h-full w-full object-cover ${producto.agotado ? 'grayscale' : ''}`}
         />
-        {producto.agotado && <span className="chip absolute left-2 top-2 border-2 border-tinta bg-rojo text-white">Agotado</span>}
+        {producto.agotado && <span className="chip absolute left-2 top-2 border-2 border-tinta bg-rojo-500 text-white">Agotado</span>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col py-3 pr-3">
         <span className="font-extrabold leading-tight">{producto.nombre}</span>
@@ -39,11 +37,11 @@ export function TarjetaProducto({ producto, onElegir, prioridad }: { producto: P
             </span>
           )}
         </span>
-        {pocas && <span className="mt-1 text-[11px] font-bold text-naranja">¡Quedan {producto.maxUnidades}!</span>}
+        {pocas && <span className="mt-1 text-[11px] font-bold text-naranja-700">¡Quedan {producto.maxUnidades}!</span>}
       </div>
-    </motion.button>
+    </button>
   )
-}
+})
 
 export function EsqueletoProducto() {
   return (

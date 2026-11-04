@@ -58,7 +58,7 @@ export function FormularioRegistro() {
             <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-rosa" checked={datos.aceptaPrivacidad} onChange={cambiar('aceptaPrivacidad')} aria-invalid={!!errores.aceptaPrivacidad} />
             <span>
               Autorizo el tratamiento de mis datos según el{' '}
-              <Link href="/privacidad" target="_blank" className="font-bold text-rosa-600 underline underline-offset-2">
+              <Link prefetch={false} href="/privacidad" target="_blank" className="font-bold text-rosa-600 underline underline-offset-2">
                 aviso de privacidad
               </Link>{' '}
               (Ley 1581 de 2012).
@@ -72,14 +72,14 @@ export function FormularioRegistro() {
       <BotonesOAuth volver={volver ?? undefined} texto="Registrarme con" />
       <p className="mt-3 text-center text-xs text-tinta-soft">
         Al continuar con Google o Apple aceptas el{' '}
-        <Link href="/privacidad" className="underline">
+        <Link prefetch={false} href="/privacidad" className="underline">
           aviso de privacidad
         </Link>
         .
       </p>
       <p className="mt-4 text-center text-sm">
         ¿Ya tienes cuenta?{' '}
-        <Link href="/ingresar" className="font-bold text-rosa-600 underline underline-offset-4">
+        <Link prefetch={false} href="/ingresar" className="font-bold text-rosa-600 underline underline-offset-4">
           Inicia sesión
         </Link>
       </p>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { ProveedorMovimiento } from '@/componentes/ProveedorMovimiento'
 import { Seguimiento } from '@/componentes/cliente/Seguimiento'
 
 export const metadata: Metadata = { title: 'Tu pedido', robots: { index: false } }
@@ -11,8 +12,10 @@ export default async function PaginaPedido({ params }: { params: Promise<{ id: s
   const { id } = await params
   if (!UUID.test(id)) notFound()
   return (
-    <Suspense>
-      <Seguimiento id={id} />
-    </Suspense>
+    <ProveedorMovimiento>
+      <Suspense>
+        <Seguimiento id={id} />
+      </Suspense>
+    </ProveedorMovimiento>
   )
 }

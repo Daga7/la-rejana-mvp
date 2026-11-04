@@ -2,11 +2,11 @@
 
 import { cop, type MenuDTO, type ProductoMenuDTO, type SedePublicaDTO } from '@rejana/shared'
 import { Bike, Clock, MapPin, RefreshCw, ShoppingBag } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import useSWR from 'swr'
+import { usePresencia } from '@/lib/presencia'
 import { avisar } from '@/componentes/Avisos'
 import { Hoja } from '@/componentes/Hoja'
 import { obtener } from '@/lib/api'
@@ -17,10 +17,10 @@ import { EsqueletoProducto, TarjetaProducto } from './TarjetaProducto'
 
 /** 14:30 → 2:30 p. m. */
 export function hora12(hhmm: string): string {
-  const [h, m] = hhmm.split(':').map(Number) as [number, number]
-  if (h === 12 && m === 0) return '12:00 m.'
+  const [h, min] = hhmm.split(':').map(Number) as [number, number]
+  if (h === 12 && min === 0) return '12:00 m.'
   const sufijo = h < 12 ? 'a. m.' : 'p. m.'
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${sufijo}`
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(min).padStart(2, '0')} ${sufijo}`
 }
 
 export function Tienda() {
@@ -29,7 +29,10 @@ export function Tienda() {
   const { sedeId, items, elegirSede, agregar } = useCarrito()
   const { data: datosSedes, error: errorSedes, mutate: recargarSedes } = useSWR<{ sedes: SedePublicaDTO[] }>('/sedes', obtener)
   const sedes = datosSedes?.sedes ?? []
-  const sede = sedes.find((s) => s.id === sedeId) ?? sedes.find((s) => s.abierta) ?? sedes[0]
+  // Durante la hidratación se usa la sede por defecto, igual que el HTML del servidor (que no conoce el
+  // carrito guardado en este navegador); justo después se aplica la sede del carrito.
+  const sedeGuardada = hidratado ? sedeId : null
+  const sede = sedes.find((s) => s.id === sedeGuardada) ?? sedes.find((s) => s.abierta) ?? sedes[0]
   const { data: menu, error: errorMenu, isLoading, mutate } = useSWR<MenuDTO>(sede ? `/sedes/${sede.id}/menu` : null, obtener, { refreshInterval: 60_000, revalidateOnFocus: true })
   const [elegido, setElegido] = useState<ProductoMenuDTO | null>(null)
   const [cambioPendiente, setCambioPendiente] = useState<SedePublicaDTO | null>(null)
@@ -41,6 +44,7 @@ export function Tienda() {
   }, [hidratado, sede, sedeId, elegirSede])
 
   const n = hidratado ? totalItems(items) : 0
+  const barraCarrito = usePresencia(n > 0)
   const irA = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const pedirCambioSede = (s: SedePublicaDTO) => {
@@ -76,7 +80,7 @@ export function Tienda() {
           {sede ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <span className={`chip border-2 border-tinta ${sede.abierta ? 'bg-turquesa text-tinta' : 'bg-rojo text-white'}`}>
+                <span className={`chip border-2 border-tinta ${sede.abierta ? 'bg-turquesa text-tinta' : 'bg-rojo-500 text-white'}`}>
                   <Clock size={13} aria-hidden /> {sede.abierta ? `Abierto · hasta las ${hora12(sede.horaCierre)}` : `Cerrado · abrimos a las ${hora12(sede.horaApertura)}`}
                 </span>
                 <span className="chip border-2 border-tinta bg-amarillo text-tinta">
@@ -128,33 +132,20 @@ export function Tienda() {
           </button>
         </div>
       ) : (
-        menu?.categorias.map((c, ci) => (
-          <section key={c.id} id={`cat-${c.slug}`} className="scroll-mt-36 pt-8" aria-labelledby={`t-${c.slug}`}>
-            <h2 id={`t-${c.slug}`} className="titulo text-2xl sm:text-3xl">
-              {c.nombre}
-            </h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {c.productos.map((p, pi) => (
-                <TarjetaProducto key={p.id} producto={p} prioridad={ci === 0 && pi < 2} onElegir={() => setElegido(p)} />
-              ))}
-            </div>
-          </section>
-        ))
+        menu && <ListaMenu menu={menu} onElegir={setElegido} />
       )}
 
       {/* Barra flotante del carrito (celular) */}
-      <AnimatePresence>
-        {n > 0 && (
-          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed inset-x-4 bottom-20 z-20 md:hidden">
-            <Link href="/carrito" className="btn btn-rosa btn-lg w-full justify-between">
-              <span className="flex items-center gap-2">
-                <ShoppingBag size={18} aria-hidden /> Ver carrito ({n})
-              </span>
-              <span className="tabular-nums">{cop(subtotal(items))}</span>
-            </Link>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {barraCarrito.montado && (
+        <div className={`fixed inset-x-4 bottom-20 z-20 md:hidden ${barraCarrito.saliendo ? 'anim-aviso-salir' : 'anim-aviso-entrar'}`}>
+          <Link prefetch={false} href="/carrito" className="btn btn-rosa btn-lg w-full justify-between">
+            <span className="flex items-center gap-2">
+              <ShoppingBag size={18} aria-hidden /> Ver carrito ({n})
+            </span>
+            <span className="tabular-nums">{cop(subtotal(items))}</span>
+          </Link>
+        </div>
+      )}
 
       <HojaProducto
         producto={elegido}
@@ -209,3 +200,19 @@ export function Tienda() {
     </div>
   )
 }
+
+/** Lista del menú por categorías. Memorizada: solo se vuelve a pintar cuando cambia el menú. */
+const ListaMenu = memo(function ListaMenu({ menu, onElegir }: { menu: MenuDTO; onElegir: (p: ProductoMenuDTO) => void }) {
+  return menu.categorias.map((c, ci) => (
+    <section key={c.id} id={`cat-${c.slug}`} className="scroll-mt-36 pt-8" aria-labelledby={`t-${c.slug}`}>
+      <h2 id={`t-${c.slug}`} className="titulo text-2xl sm:text-3xl">
+        {c.nombre}
+      </h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {c.productos.map((p, pi) => (
+          <TarjetaProducto key={p.id} producto={p} prioridad={ci === 0 && pi < 2} onElegir={onElegir} />
+        ))}
+      </div>
+    </section>
+  ))
+})

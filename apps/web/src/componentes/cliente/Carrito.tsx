@@ -2,7 +2,7 @@
 
 import { cop, type MenuDTO, type SedePublicaDTO } from '@rejana/shared'
 import { ArrowRight, Minus, Plus, Trash2 } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import Link from 'next/link'
 import { useEffect, useMemo } from 'react'
 import useSWR from 'swr'
@@ -71,7 +71,7 @@ export function Carrito() {
             const p = productos.get(i.productoId)
             const problema = menu && (!p || p.agotado) ? 'Se agotó' : p && p.maxUnidades !== null && p.maxUnidades < i.cantidad ? `Solo quedan ${p.maxUnidades}` : null
             return (
-              <motion.li key={`${i.productoId}|${i.notas}`} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="sticker flex gap-3 p-3 text-tinta">
+              <m.li key={`${i.productoId}|${i.notas}`} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="sticker flex gap-3 p-3 text-tinta">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={i.imagenUrl ?? '/iconos/icono.svg'} alt="" width={80} height={60} className="h-16 w-20 shrink-0 rounded-xl border-2 border-tinta object-cover" />
                 <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ export function Carrito() {
                     <span className="font-black tabular-nums text-rosa-600">{cop(i.precio * i.cantidad)}</span>
                   </div>
                 </div>
-              </motion.li>
+              </m.li>
             )
           })}
         </AnimatePresence>

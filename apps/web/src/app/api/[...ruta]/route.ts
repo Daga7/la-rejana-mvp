@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { ipCliente } from '@/lib/ip-cliente'
 
 // Proxy same-origin hacia la API. Así las cookies de sesión son de primera parte aunque la web y la API
 // vivan en dominios distintos (Vercel + Railway), y la API recibe la IP real del cliente para el rate limiting.
@@ -8,13 +9,6 @@ const SECRETO = process.env.PROXY_SHARED_SECRET ?? ''
 
 const CABECERAS_ENTRADA = ['content-type', 'cookie', 'x-csrf-token', 'idempotency-key', 'x-pedido-token', 'user-agent', 'accept', 'accept-language', 'origin', 'sec-fetch-site', 'x-hub-signature-256']
 const CABECERAS_EXCLUIDAS_SALIDA = new Set(['set-cookie', 'content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive'])
-
-function ipCliente(req: NextRequest): string {
-  // Vercel y Railway ponen la IP del cliente en X-Forwarded-For; la entrada más a la derecha la agregó el proxy de la plataforma.
-  const xff = req.headers.get('x-forwarded-for')
-  const candidata = xff?.split(',').map((s) => s.trim()).filter(Boolean).at(-1) ?? req.headers.get('x-real-ip') ?? '127.0.0.1'
-  return candidata.replace(/^::ffff:/, '')
-}
 
 async function reenviar(req: NextRequest, ctx: { params: Promise<{ ruta: string[] }> }) {
   const { ruta } = await ctx.params
@@ -30,7 +24,7 @@ async function reenviar(req: NextRequest, ctx: { params: Promise<{ ruta: string[
     if (valor) cabeceras.set(nombre, valor)
   }
   cabeceras.set('x-rejana-proxy-secret', SECRETO)
-  cabeceras.set('x-rejana-client-ip', ipCliente(req))
+  cabeceras.set('x-rejana-client-ip', ipCliente(req.headers))
 
   const conCuerpo = !['GET', 'HEAD'].includes(req.method)
   let respuesta: Response

@@ -1,6 +1,5 @@
 'use client'
 
-import { AnimatePresence, motion } from 'motion/react'
 import { CheckCircle2, Info, XCircle } from 'lucide-react'
 import { create } from 'zustand'
 
@@ -10,6 +9,8 @@ interface Aviso {
   texto: string
   tipo: TipoAviso
   accion?: { texto: string; fn: () => void }
+  /** Corre la animación de salida antes de quitarlo. */
+  saliendo?: boolean
 }
 
 interface EstadoAvisos {
@@ -26,7 +27,11 @@ export const useAvisos = create<EstadoAvisos>((set, get) => ({
     set({ avisos: [...get().avisos.slice(-2), { ...a, id }] })
     if (duracionMs > 0) setTimeout(() => get().quitar(id), duracionMs)
   },
-  quitar: (id) => set({ avisos: get().avisos.filter((x) => x.id !== id) }),
+  quitar: (id) => {
+    if (!get().avisos.some((x) => x.id === id && !x.saliendo)) return
+    set({ avisos: get().avisos.map((x) => (x.id === id ? { ...x, saliendo: true } : x)) })
+    setTimeout(() => set({ avisos: get().avisos.filter((x) => x.id !== id) }), 200)
+  },
 }))
 
 /** Muestra un aviso breve. Se puede llamar desde cualquier parte del cliente. */
@@ -35,24 +40,19 @@ export function avisar(texto: string, tipo: TipoAviso = 'ok', accion?: Aviso['ac
 }
 
 const ICONO = { ok: CheckCircle2, error: XCircle, info: Info }
-const COLOR = { ok: 'bg-turquesa text-tinta', error: 'bg-rojo text-white', info: 'bg-amarillo text-tinta' }
+const COLOR = { ok: 'bg-turquesa text-tinta', error: 'bg-rojo-500 text-white', info: 'bg-amarillo text-tinta' }
 
 export function Avisos() {
   const { avisos, quitar } = useAvisos()
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[90] flex flex-col items-center gap-2 px-4 md:bottom-6" role="status" aria-live="polite">
-      <AnimatePresence initial={false}>
-        {avisos.map((a) => {
+    // En el celular queda por encima de la barra inferior y de la barra flotante del carrito.
+    <div className="pointer-events-none fixed inset-x-0 bottom-40 z-[90] flex flex-col items-center gap-2 px-4 md:bottom-6" role="status" aria-live="polite">
+      {avisos.map((a) => {
           const Icono = ICONO[a.tipo]
           return (
-            <motion.div
+            <div
               key={a.id}
-              layout
-              initial={{ opacity: 0, y: 24, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className={`pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border-2 border-tinta px-4 py-3 text-sm font-bold shadow-sticker ${COLOR[a.tipo]}`}
+              className={`pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border-2 border-tinta px-4 py-3 text-sm font-bold shadow-sticker ${COLOR[a.tipo]} ${a.saliendo ? 'anim-aviso-salir' : 'anim-aviso-entrar'}`}
             >
               <Icono size={18} aria-hidden className="shrink-0" />
               <span className="flex-1">{a.texto}</span>
@@ -67,10 +67,9 @@ export function Avisos() {
                   {a.accion.texto}
                 </button>
               )}
-            </motion.div>
+            </div>
           )
         })}
-      </AnimatePresence>
     </div>
   )
 }

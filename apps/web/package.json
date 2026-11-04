@@ -10,7 +10,7 @@
     "start": "node scripts/next-con-env.mjs start --port ${PORT:-3000}",
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.json",
     "lint": "eslint",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --dir src --passWithNoTests",
     "iconos": "node scripts/generar-iconos.mjs",
     "e2e": "playwright test"
   },

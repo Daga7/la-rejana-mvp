@@ -85,7 +85,9 @@ export function rutasAuth(app: FastifyInstance, c: Contenedor) {
   })
 
   // --- Sesión ------------------------------------------------------------------------------------
-  app.post('/api/auth/ingresar', { config: limite(10, '1 minute') }, async (req, reply) => {
+  // En producción el límite es fijo (10 por minuto e IP); en desarrollo se puede subir para las pruebas e2e.
+  const ingresosPorMinuto = c.env.NODE_ENV === 'production' ? 10 : c.env.LIMITE_INGRESOS_POR_MINUTO
+  app.post('/api/auth/ingresar', { config: limite(ingresosPorMinuto, '1 minute') }, async (req, reply) => {
     const datos = ingresarSchema.parse(req.body)
     const s = await auth.ingresar(datos, ctx(req))
     emitir(reply, s)

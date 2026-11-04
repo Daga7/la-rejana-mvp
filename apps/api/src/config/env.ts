@@ -30,6 +30,8 @@ const esquema = z
     PROXY_SHARED_SECRET: secreto,
     COOKIE_SECURE: booleano,
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+    /** Inicios de sesión por minuto e IP. Solo se puede subir fuera de producción (p. ej. para las pruebas e2e). */
+    LIMITE_INGRESOS_POR_MINUTO: z.coerce.number().int().min(10).max(1000).default(10),
     HIBP_HABILITADO: booleano,
     /** Solo para pruebas y demos: acepta pedidos aunque la sede esté cerrada. */
     PERMITIR_PEDIDOS_FUERA_DE_HORARIO: booleano,

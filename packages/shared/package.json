@@ -1,0 +1,21 @@
+{
+  "name": "@rejana/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Esquemas Zod, enums y utilidades compartidas entre la API y la web.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

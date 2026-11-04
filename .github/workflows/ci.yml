@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rejana
+          POSTGRES_PASSWORD: rejana_ci
+          POSTGRES_DB: rejana_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rejana -d rejana_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgres://rejana:rejana_ci@localhost:5432/rejana_test
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm --filter @rejana/web lint
+      - run: pnpm test
+      - run: pnpm build
+      - name: Auditoría de dependencias (falla con vulnerabilidades altas o críticas)
+        run: pnpm audit --audit-level high --prod

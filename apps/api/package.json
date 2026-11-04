@@ -1,0 +1,53 @@
+{
+  "name": "@rejana/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API de La Rejana Callejera (Fastify + arquitectura hexagonal).",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=../../.env src/adapters/db/migrar.ts",
+    "db:seed": "tsx --env-file-if-exists=../../.env src/adapters/db/seed.ts",
+    "db:reset": "tsx --env-file-if-exists=../../.env src/adapters/db/reset.ts",
+    "admin:crear": "tsx --env-file-if-exists=../../.env src/adapters/db/crear-admin.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "^11.4.0",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/rate-limit": "^11.2.2",
+    "@rejana/shared": "workspace:*",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "jose": "^6.2.15",
+    "nodemailer": "^10.3.1",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "socket.io": "^4.8.4",
+    "web-push": "^3.6.7",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pdfkit": "^0.17.7",
+    "@types/pg": "^8.15.0",
+    "@types/web-push": "^3.6.4",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.0",
+    "socket.io-client": "^4.8.4",
+    "tsx": "^4.23.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

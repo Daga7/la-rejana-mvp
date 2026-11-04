@@ -1,0 +1,32 @@
+# Entorno local de desarrollo. Puertos no estándar para no chocar con otros proyectos.
+name: rejanamvp
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rejana
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rejana_local_solo_dev}
+      POSTGRES_DB: rejana
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rejana -d rejana"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Captura los correos de desarrollo (códigos, invitaciones): http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  pgdata:

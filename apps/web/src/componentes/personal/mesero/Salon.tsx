@@ -188,10 +188,10 @@ export function Salon() {
                           <span className="sr-only">Mesa </span>
                           {m.numero}
                         </span>
-                        <span className="mt-0.5 text-[10px] font-bold opacity-90 sm:text-xs">{m.unidaA ? `con la ${m.unidaA}` : m.cuenta ? `$${Math.round(m.cuenta.subtotal / 1000)}k` : 'Libre'}</span>
+                        {(m.unidaA || m.cuenta) && <span className="mt-0.5 text-[10px] font-bold opacity-90 sm:text-xs">{m.unidaA ? `con la ${m.unidaA}` : `$${Math.round(m.cuenta!.subtotal / 1000)}k`}</span>}
                       </>
                     )}
-                    etiquetaMesa={(m) => `, ${m.unidaA ? `junta con la mesa ${m.unidaA}, ` : ''}${m.cuenta ? `${NOMBRE_ESTADO_MESA[m.estado]}, ${m.cuenta.comensales} personas` : `${m.puestos} puestos`}`}
+                    etiquetaMesa={(m) => `, ${m.unidaA ? `junta con la mesa ${m.unidaA}, ` : ''}${m.cuenta ? `${NOMBRE_ESTADO_MESA[m.estado]}, ${m.cuenta.comensales} personas` : `libre, ${m.puestos} puestos`}`}
                   />
                 </div>
               ) : (
@@ -235,6 +235,7 @@ export function Salon() {
             sedeId={sedeId}
             onAbierta={(c) => {
               setAbrir(null)
+              void mutate()
               router.push(`/mesero/cuenta/${c.id}`)
             }}
           />

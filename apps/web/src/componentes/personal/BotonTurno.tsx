@@ -45,7 +45,8 @@ export function BotonTurno() {
   if (!turno) {
     return (
       <button className="btn btn-amarillo btn-sm" disabled={enviando} onClick={() => void marcar('entrada')}>
-        <LogIn size={16} aria-hidden /> <span>Marcar entrada</span>
+        <LogIn size={16} aria-hidden /> <span className="hidden sm:inline">Marcar entrada</span>
+        <span className="sm:hidden">Entrada</span>
       </button>
     )
   }

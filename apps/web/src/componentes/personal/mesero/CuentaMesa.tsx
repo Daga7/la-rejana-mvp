@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRightLeft, Check, Combine, MessageSquarePlus, ReceiptTe
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { avisar } from '@/componentes/Avisos'
 import { Hoja } from '@/componentes/Hoja'
 import { api, ErrorApi, obtener } from '@/lib/api'
@@ -21,6 +21,9 @@ export function CuentaMesa({ id }: { id: string }) {
   const router = useRouter()
   const { data, error, mutate } = useSWR<{ cuenta: CuentaMesaDTO }>(`/cuentas/${id}`, obtener)
   const cuenta = data?.cuenta
+  // El salón guarda su caché: al volver debe mostrar ya la mesa liberada, trasladada o juntada.
+  const { mutate: mutarGlobal } = useSWRConfig()
+  const refrescarSalon = () => (cuenta ? mutarGlobal(`/mesas/${cuenta.sedeId}/salon`) : Promise.resolve())
   const { data: menu } = useSWR<MenuDTO>(cuenta ? `/sedes/${cuenta.sedeId}/menu` : null, obtener, { refreshInterval: 60_000 })
   const lineas = useBorradores((s) => s.porCuenta[id]?.lineas ?? SIN_BORRADOR)
   const clave = useBorradores((s) => s.porCuenta[id]?.clave)
@@ -47,7 +50,7 @@ export function CuentaMesa({ id }: { id: string }) {
     try {
       await fn()
       if (exito) avisar(exito)
-      await mutate()
+      await Promise.all([mutate(), refrescarSalon()])
       return true
     } catch (e) {
       avisar(e instanceof ErrorApi ? e.message : 'No se pudo completar la acción', 'error')
@@ -253,7 +256,7 @@ export function CuentaMesa({ id }: { id: string }) {
                 onHecho={async (texto) => {
                   setMoviendo(false)
                   avisar(texto)
-                  await mutate()
+                  await Promise.all([mutate(), refrescarSalon()])
                 }}
               />
             )}

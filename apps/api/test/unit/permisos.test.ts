@@ -86,3 +86,31 @@ describe('reglas de sede', () => {
     expect(dentroDeCobertura(sede, { lat: 4.6, lng: -74.05 })).toBe(false)
   })
 })
+
+import { hasherBcrypt } from '../../src/adapters/seguridad/hasher-bcrypt'
+
+describe('hash de contraseñas', () => {
+  const h = hasherBcrypt(4, 'pimienta-de-prueba-suficientemente-larga-123')
+
+  it('distingue contraseñas largas que solo difieren después de 72 bytes', async () => {
+    const base = 'mi frase secreta con tildes áéíóú y eñes ñandú '.repeat(2)
+    const hash = await h.hash(`${base}A`)
+    expect(await h.verificar(`${base}A`, hash)).toBe(true)
+    expect(await h.verificar(`${base}B`, hash)).toBe(false)
+  })
+
+  it('acepta hashes antiguos y pide actualizarlos', async () => {
+    const bcrypt = (await import('bcryptjs')).default
+    const viejo = await bcrypt.hash('clave antigua 2026', 4)
+    expect(await h.verificar('clave antigua 2026', viejo)).toBe(true)
+    expect(h.necesitaActualizar(viejo)).toBe(true)
+    expect(h.necesitaActualizar(await h.hash('otra'))).toBe(false)
+  })
+
+  it('exige costo ≥ 12 en producción', () => {
+    const antes = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    expect(() => hasherBcrypt(10, 'x')).toThrow()
+    process.env.NODE_ENV = antes
+  })
+})

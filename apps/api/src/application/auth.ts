@@ -238,7 +238,9 @@ export function crearCasosAuth(d: DepsAuth) {
         throw credencialesInvalidas()
       }
       if (!u.activo) throw new ErrorDominio('CUENTA_INACTIVA', 'Tu cuenta está desactivada. Habla con el administrador.')
-      await uow.repos.usuarios.actualizar(u.id, { intentosFallidos: 0, bloqueadoHasta: null, ultimoIngresoEn: ahora })
+      // Migración transparente de hashes antiguos al formato actual.
+      const passwordHash = hasher.necesitaActualizar?.(u.passwordHash) ? await hasher.hash(e.clave) : undefined
+      await uow.repos.usuarios.actualizar(u.id, { intentosFallidos: 0, bloqueadoHasta: null, ultimoIngresoEn: ahora, ...(passwordHash ? { passwordHash } : {}) })
       return emitirSesion(uow.repos, u, ctx)
     },
 

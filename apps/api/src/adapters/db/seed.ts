@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import bcrypt from 'bcryptjs'
 import { sql } from 'drizzle-orm'
 import { VERSION_PRIVACIDAD } from '@rejana/shared'
+import { hasherBcrypt } from '../seguridad/hasher-bcrypt'
 import { conectarBD, type BaseDatos } from './cliente'
 import { crearRepositorios } from './repos'
 import * as t from './schema'
@@ -174,13 +174,15 @@ const STOCK: Record<ClaveInsumo, [number, number, number]> = {
 const NOMBRES = ['María Camila Torres', 'Andrés Felipe Gil', 'Juliana Restrepo', 'Santiago Mejía', 'Valentina Ospina', 'Camilo Rodríguez', 'Laura Sofía Peña', 'Sebastián Castro', 'Daniela Herrera', 'Juan Pablo Rincón', 'Natalia Vargas', 'Mateo Cárdenas', 'Paula Andrea Ruiz', 'Felipe Quintero', 'Manuela Jaramillo']
 const VIAS = ['Calle', 'Carrera', 'Transversal', 'Diagonal']
 
-export async function sembrar(db: BaseDatos, opciones: { pimienta: string; historicoDias?: number; silencioso?: boolean } = { pimienta: 'x' }) {
+export async function sembrar(db: BaseDatos, opciones: { pimienta: string; historicoDias?: number; silencioso?: boolean; costoHash?: number }) {
+  // La pimienta debe ser la misma TOKENS_PEPPER de la API: con otra, las contraseñas demo no servirían.
+  if (opciones.pimienta.length < 32) throw new Error('Define TOKENS_PEPPER (≥ 32 caracteres) antes de sembrar')
   const log = (m: string) => {
     if (!opciones.silencioso) console.log(m)
   }
   const R = rng(20261103)
   const ahora = new Date()
-  const hashDemo = await bcrypt.hash(CLAVE_DEMO, 12)
+  const hashDemo = await hasherBcrypt(opciones.costoHash ?? 12, opciones.pimienta).hash(CLAVE_DEMO)
 
   await db.transaction(async (tx) => {
     const repos = crearRepositorios(tx)
@@ -406,7 +408,7 @@ if (esPrincipal) {
   if (n > 0) {
     console.log('La base ya tiene datos; usa `pnpm db:reset` para empezar de cero.')
   } else {
-    await sembrar(conexion.db, { pimienta: process.env.TOKENS_PEPPER ?? '' })
+    await sembrar(conexion.db, { pimienta: process.env.TOKENS_PEPPER ?? '' }) // falla si falta
     console.log('✔ Seed completo')
   }
   await conexion.cerrar()

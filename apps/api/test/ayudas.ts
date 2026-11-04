@@ -79,7 +79,7 @@ export async function levantar(opciones: { sembrar?: boolean; env?: Partial<Reco
     sobrescrituras: {
       reloj: { ahora: () => new Date(reloj.t) },
       correo: { enviar: async (m) => void correos.push(m) },
-      hasher: hasherBcrypt(4), // solo pruebas: el costo real (12) se usa en la app
+      hasher: hasherBcrypt(4, env.TOKENS_PEPPER), // solo pruebas: el costo real (12) se usa en la app
       filtradas: { estaFiltrada: async (clave) => clave === 'Filtrada.2026!' },
       push,
       whatsapp: {
@@ -99,7 +99,7 @@ export async function levantar(opciones: { sembrar?: boolean; env?: Partial<Reco
     },
   })
   await limpiar(c)
-  if (opciones.sembrar !== false) await sembrar(c.conexion.db, { pimienta: env.TOKENS_PEPPER, historicoDias: 2, silencioso: true })
+  if (opciones.sembrar !== false) await sembrar(c.conexion.db, { pimienta: env.TOKENS_PEPPER, historicoDias: 2, silencioso: true, costoHash: 4 })
   return { app, c, correos, whatsapp, pushes, reloj, cerrar }
 }
 

@@ -150,7 +150,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
 
   const reloj = s.reloj ?? { ahora: () => new Date() }
   const cripto = criptografiaNode(env.TOKENS_PEPPER)
-  const hasher = s.hasher ?? hasherBcrypt(12)
+  const hasher = s.hasher ?? hasherBcrypt(12, env.TOKENS_PEPPER)
   const filtradas = s.filtradas ?? verificadorHibp(log, env.HIBP_HABILITADO && env.NODE_ENV !== 'test')
   const tokens = emisorTokensJose(env.JWT_SECRET)
   const eventos = new PublicadorSocketIo()

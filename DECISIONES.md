@@ -105,3 +105,11 @@ Registro de las decisiones que no venían especificadas en el encargo, con su po
 | D57 | Webhook: firma `X-Hub-Signature-256` verificada sobre el **cuerpo crudo** en tiempo constante, respuesta 200 inmediata y procesamiento en segundo plano, **idempotencia por `wamid`**, lista blanca = admins activos con WhatsApp habilitado (los números desconocidos se ignoran sin responder ni guardar nada), límite de 20 reportes por hora por número y descarga de audio solo desde dominios de Meta. | Meta reintenta los webhooks; se evita SSRF, duplicados, abuso y costos. |
 | D58 | PDF con **pdfkit** (vectorial, sin navegador) y las fuentes de la marca incrustadas (Poppins y Lora, licencia OFL incluida). Las gráficas usan la misma paleta validada del tablero; un periodo de un solo día no lleva gráfica (sería una barra sola) sino tabla por sede. | Imagen Docker liviana y reportes con la identidad del restaurante. |
 | D59 | El admin puede **probar el asistente y descargar los PDF** desde `/admin/asistente`, con el mismo flujo que WhatsApp. | Permite usar y validar los reportes antes de tener la cuenta de Meta. |
+
+## Cierre: revisión de seguridad
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| D60 | Contraseñas: **HMAC-SHA256 con la pimienta del servidor → bcrypt costo 12**, guardado con el prefijo `v2$`. Los hashes sin prefijo se siguen aceptando y se recalculan solos en el siguiente inicio de sesión. | bcrypt ignora lo que pasa de 72 bytes (frases largas con tildes llegan rápido); el HMAC además impide el *password shucking*. **Consecuencia:** `TOKENS_PEPPER` no se puede cambiar sin obligar a todos a restablecer su contraseña. |
+| D61 | Toda respuesta de la API lleva `Cache-Control: no-store` salvo que la ruta diga otra cosa; el service worker solo guarda datos públicos (sedes y menú). | ASVS 8.2.1: que los datos personales no queden en cachés del navegador ni intermedias. |
+| D62 | El proxy `/api/*` de la web rechaza segmentos `.` y `..`. | Que desde internet solo se alcancen rutas bajo `/api` de la API. |

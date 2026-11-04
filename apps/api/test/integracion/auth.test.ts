@@ -40,7 +40,7 @@ describe('registro con código de 6 dígitos', () => {
     expect(yo.json().usuario.correo).toBe(correo)
     const u = await e.c.uow.repos.usuarios.porEmail(correo)
     expect(u?.aceptoPrivacidadEn).not.toBeNull()
-    expect(u?.passwordHash).toMatch(/^\$2[aby]\$/)
+    expect(u?.passwordHash).toMatch(/^v2\$\$2[aby]\$/)
   })
 
   it('exige aceptar el aviso de privacidad', async () => {

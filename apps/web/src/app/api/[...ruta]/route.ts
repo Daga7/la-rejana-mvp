@@ -18,6 +18,10 @@ function ipCliente(req: NextRequest): string {
 
 async function reenviar(req: NextRequest, ctx: { params: Promise<{ ruta: string[] }> }) {
   const { ruta } = await ctx.params
+  // Sin segmentos «.» o «..»: el proxy solo alcanza rutas bajo /api de la API, nunca otras.
+  if (ruta.some((s) => s === '' || s === '.' || s === '..')) {
+    return Response.json({ error: { codigo: 'NO_ENCONTRADO', mensaje: 'Ruta no encontrada' } }, { status: 404 })
+  }
   const destino = new URL(`/api/${ruta.map(encodeURIComponent).join('/')}${req.nextUrl.search}`, API)
 
   const cabeceras = new Headers()

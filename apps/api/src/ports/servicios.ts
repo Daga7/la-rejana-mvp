@@ -18,6 +18,8 @@ export interface Logger {
 export interface HasherClaves {
   hash(clave: string): Promise<string>
   verificar(clave: string, hash: string): Promise<boolean>
+  /** true si el hash usa un formato o costo antiguo y conviene recalcularlo al iniciar sesión. */
+  necesitaActualizar?(hash: string): boolean
 }
 
 /** Consulta de contraseñas filtradas (p. ej. Have I Been Pwned con k-anonimato). */

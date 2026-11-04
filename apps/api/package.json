@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=../../.env src/adapters/db/migrar.ts",
-    "db:seed": "tsx --env-file-if-exists=../../.env src/adapters/db/seed.ts",
+    "db:seed": "tsx --env-file-if-exists=../../.env src/adapters/db/sembrar-cli.ts",
     "db:reset": "tsx --env-file-if-exists=../../.env src/adapters/db/reset.ts",
     "admin:crear": "tsx --env-file-if-exists=../../.env src/adapters/db/crear-admin.ts"
   },

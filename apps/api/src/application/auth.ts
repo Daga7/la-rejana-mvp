@@ -14,6 +14,7 @@ import type { CodigoVerificacion, PropositoCodigo, Repositorios, UnidadDeTrabajo
 import type { Criptografia, EmisorTokens, HasherClaves, Logger, ProveedorIdentidad, Reloj, ServicioCorreo, VerificadorClavesFiltradas } from '../ports/servicios'
 import { auditar, enviarEnSegundoPlano, rutaSegura, usuarioDTO, type ContextoSolicitud } from './comun'
 import {
+  correoAdminInicial,
   correoClaveCambiada,
   correoCodigoRecuperacion,
   correoCodigoRegistro,
@@ -28,6 +29,8 @@ export const POLITICA = {
   login: { maxFallos: 5, minutosBloqueo: 15 },
   minutosAcceso: 15,
   invitacionHoras: 72,
+  /** La invitación del primer administrador (ADMIN_INICIAL_CORREO) dura poco: el enlace no queda vivo más de lo necesario. */
+  invitacionInicialHoras: 2,
   /** Ventana en la que un refresh token ya usado se considera una carrera entre pestañas y no un robo. */
   graciaReusoMs: 30_000,
 }
@@ -502,6 +505,32 @@ export function crearCasosAuth(d: DepsAuth) {
         throw new ErrorDominio('SERVICIO_NO_DISPONIBLE', 'Creamos la invitación pero no pudimos enviar el correo. Intenta reenviarla en unos minutos.')
       }
       return { id: inv.id, correo: inv.email, rol: inv.rol, sedeId: inv.sedeId, expiraEn: inv.expiraEn.toISOString() }
+    },
+
+    /**
+     * Primer administrador sin consola: si no hay ningún administrador activo, envía una invitación de un solo
+     * uso a `correo` (vence en 2 horas). No hace nada si ya hay un administrador, si el correo ya tiene cuenta
+     * o si sigue vigente una invitación anterior (reiniciar la API no reenvía correos). El token solo viaja en el
+     * correo; con EMAIL_PROVEEDOR=consola el correo completo sale en el log, como cualquier otro.
+     */
+    async invitarAdminInicial(correo: string): Promise<'enviada' | 'hay_admin' | 'correo_en_uso' | 'vigente'> {
+      const email = correo.trim().toLowerCase()
+      const ahora = reloj.ahora()
+      const horas = POLITICA.invitacionInicialHoras
+      const token = cripto.tokenAleatorio(32)
+      const resultado = await uow.transaccion(async (repos) => {
+        if ((await repos.usuarios.contarAdminsActivos()) > 0) return 'hay_admin' as const
+        if (await repos.usuarios.porEmail(email)) return 'correo_en_uso' as const
+        if ((await repos.invitaciones.pendientes(ahora)).some((i) => i.email === email && i.rol === 'admin')) return 'vigente' as const
+        await repos.invitaciones.revocarPendientesDe(email, ahora)
+        const creada = await repos.invitaciones.crear({ email, rol: 'admin', sedeId: null, tokenHash: cripto.huella(token), invitadoPor: null, expiraEn: new Date(ahora.getTime() + horas * HORA) })
+        await auditar(repos, { tipo: 'sistema' }, 'invitacion.admin_inicial', 'invitacion', creada.id, { email })
+        return 'enviada' as const
+      })
+      if (resultado === 'enviada') {
+        await d.correo.enviar(correoAdminInicial(email, `${url('/invitacion')}#t=${token}`, horas))
+      }
+      return resultado
     },
 
     async consultarInvitacion(token: string) {

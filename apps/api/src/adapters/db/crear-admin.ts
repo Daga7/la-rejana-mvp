@@ -1,23 +1,24 @@
 import { correo as esquemaCorreo } from '@rejana/shared'
-import { conectarBD } from './cliente'
+import { conectarBD, opcionesBDDelEntorno } from './cliente'
 import { crearRepositorios } from './repos'
 import { criptografiaNode } from '../seguridad/criptografia'
 
 // Crea una invitación de un solo uso para el PRIMER administrador (o uno adicional de emergencia).
 // No existen contraseñas por defecto: la persona define la suya al aceptar la invitación.
-// Uso:  pnpm --filter @rejana/api admin:crear correo@dominio.com      (en Railway: node dist/crear-admin.js correo@…)
+// Uso:  pnpm --filter @rejana/api admin:crear correo@dominio.com      (con la imagen: node dist/crear-admin.js correo@…)
+// Sin consola (Railway desde la tableta), usa ADMIN_INICIAL_CORREO: la API envía la invitación al arrancar.
 
 const entrada = esquemaCorreo.safeParse(process.argv[2])
 if (!entrada.success) {
   console.error('Uso: crear-admin <correo>')
   process.exit(1)
 }
-const { DATABASE_URL, TOKENS_PEPPER, WEB_ORIGIN, DATABASE_SSL } = process.env
+const { DATABASE_URL, TOKENS_PEPPER, WEB_ORIGIN } = process.env
 if (!DATABASE_URL || !TOKENS_PEPPER || !WEB_ORIGIN) {
   console.error('Faltan DATABASE_URL, TOKENS_PEPPER o WEB_ORIGIN')
   process.exit(1)
 }
-const conexion = conectarBD(DATABASE_URL, { ssl: DATABASE_SSL === 'true', max: 1 })
+const conexion = conectarBD(DATABASE_URL, { ...opcionesBDDelEntorno(), max: 1 })
 const repos = crearRepositorios(conexion.db)
 const email = entrada.data
 if (await repos.usuarios.porEmail(email)) {

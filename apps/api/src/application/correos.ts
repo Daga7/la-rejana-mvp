@@ -80,6 +80,21 @@ export function correoClaveCambiada(para: string, nombre: string, urlRecuperar: 
   }
 }
 
+/** Invitación del primer administrador (ADMIN_INICIAL_CORREO): la envía la propia API al arrancar. */
+export function correoAdminInicial(para: string, url: string, horas: number): MensajeCorreo {
+  return {
+    para,
+    asunto: 'Crea tu acceso de administrador de La Rejana Callejera',
+    texto: `La app de La Rejana Callejera ya está funcionando. Crea tu acceso de administrador aquí (vence en ${horas} horas y solo sirve una vez): ${url}\n\nSi no esperabas este correo, ignóralo.`,
+    html: plantilla(
+      'Tu acceso de administrador',
+      parrafo('La app de La Rejana Callejera ya está funcionando. Crea tu acceso de administrador para empezar a configurarla.') +
+        boton('Crear mi acceso', url) +
+        parrafo(`El enlace vence en ${horas} horas y solo sirve una vez. Si vence, reinicia el servicio de la API y te llegará uno nuevo. Si no esperabas este correo, ignóralo.`),
+    ),
+  }
+}
+
 export function correoInvitacion(para: string, rol: RolEmpleado, sedeNombre: string | null, invitadoPor: string, url: string, horas: number): MensajeCorreo {
   const donde = sedeNombre ? ` en la sede ${sedeNombre}` : ''
   return {

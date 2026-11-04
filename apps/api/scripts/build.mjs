@@ -8,7 +8,7 @@ const externas = Object.keys(pkg.dependencies).filter((d) => !d.startsWith('@rej
 
 await rm(new URL('../dist', import.meta.url), { recursive: true, force: true })
 await build({
-  entryPoints: { main: 'src/main.ts', migrar: 'src/adapters/db/migrar.ts', 'crear-admin': 'src/adapters/db/crear-admin.ts' },
+  entryPoints: { main: 'src/main.ts', migrar: 'src/adapters/db/migrar.ts', 'crear-admin': 'src/adapters/db/crear-admin.ts', seed: 'src/adapters/db/sembrar-cli.ts' },
   outdir: 'dist',
   bundle: true,
   platform: 'node',

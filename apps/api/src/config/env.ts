@@ -1,3 +1,4 @@
+import { correo } from '@rejana/shared'
 import { z } from 'zod'
 
 // Configuración validada al arrancar: si falta algo crítico la API no inicia.
@@ -39,6 +40,13 @@ const esquema = z
     HIBP_HABILITADO: booleano,
     /** Solo para pruebas y demos: acepta pedidos aunque la sede esté cerrada. */
     PERMITIR_PEDIDOS_FUERA_DE_HORARIO: booleano,
+
+    /** Carga los datos de prueba al arrancar, solo si la base está vacía (sin sedes ni usuarios). */
+    SEED_AL_INICIAR: booleano,
+    /** Confirmación explícita para cargar datos de prueba con NODE_ENV=production (crean usuarios con contraseña conocida). */
+    SEED_PERMITIR_PRODUCCION: booleano,
+    /** Si no hay ningún administrador activo, le envía a este correo una invitación de un solo uso (sin consola). */
+    ADMIN_INICIAL_CORREO: opcional,
 
     EMAIL_PROVEEDOR: z.enum(['consola', 'smtp', 'resend']).default('consola'),
     EMAIL_REMITENTE: z.string().default('La Rejana Callejera <no-responder@larejana.co>'),
@@ -91,7 +99,9 @@ const esquema = z
       exigir(env.COOKIE_SECURE, 'COOKIE_SECURE', 'debe ser true en producción')
       exigir(!env.OAUTH_MOCK, 'OAUTH_MOCK', 'no se permite el OAuth simulado en producción')
       exigir(env.WEB_ORIGIN.startsWith('https://'), 'WEB_ORIGIN', 'debe usar https en producción')
+      if (env.SEED_AL_INICIAR) exigir(env.SEED_PERMITIR_PRODUCCION, 'SEED_PERMITIR_PRODUCCION', 'debe ser true para cargar datos de prueba en producción (crean usuarios con contraseña conocida)')
     }
+    if (env.ADMIN_INICIAL_CORREO) exigir(correo.safeParse(env.ADMIN_INICIAL_CORREO).success, 'ADMIN_INICIAL_CORREO', 'no es un correo válido')
     if (env.EMAIL_PROVEEDOR === 'smtp') exigir(!!env.SMTP_HOST, 'SMTP_HOST', 'requerido con EMAIL_PROVEEDOR=smtp')
     if (env.EMAIL_PROVEEDOR === 'resend') exigir(!!env.RESEND_API_KEY, 'RESEND_API_KEY', 'requerido con EMAIL_PROVEEDOR=resend')
     if (env.WHATSAPP_PROVEEDOR === 'meta') {

@@ -1,13 +1,12 @@
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
 import { ALFABETO_PASAPORTE, LARGO_CODIGO_PASAPORTE, VERSION_PRIVACIDAD, VERSION_TERMINOS_PASAPORTE } from '@rejana/shared'
 import { hasherBcrypt } from '../seguridad/hasher-bcrypt'
-import { conectarBD, type BaseDatos } from './cliente'
+import type { BaseDatos } from './cliente'
 import { crearRepositorios } from './repos'
 import * as t from './schema'
 
-// Datos de prueba para desarrollo. NO se ejecuta en producción (ver guardia al final).
+// Datos de prueba para desarrollo y para la demo desplegada. Los usan `pnpm db:seed` (sembrar-cli.ts), las
+// pruebas y la API al arrancar con SEED_AL_INICIAR (solo con la base vacía; ver arranque.ts).
 // Contraseña de todos los usuarios de prueba: Rejana2026*
 
 export const CLAVE_DEMO = 'Rejana2026*'
@@ -183,8 +182,10 @@ export async function sembrar(
     costoHash?: number
     /** Operación de ejemplo (mesas ocupadas, turnos de la semana, pasaportes). Las pruebas lo desactivan para partir de cero. */
     datosDemo?: boolean
+    /** No toca una base con datos: si ya hay sedes o usuarios no carga nada. Usa un candado para que dos procesos no siembren a la vez. */
+    soloSiVacia?: boolean
   },
-) {
+): Promise<boolean> {
   // La pimienta debe ser la misma TOKENS_PEPPER de la API: con otra, las contraseñas demo no servirían.
   if (opciones.pimienta.length < 32) throw new Error('Define TOKENS_PEPPER (≥ 32 caracteres) antes de sembrar')
   const log = (m: string) => {
@@ -194,7 +195,12 @@ export async function sembrar(
   const ahora = new Date()
   const hashDemo = await hasherBcrypt(opciones.costoHash ?? 12, opciones.pimienta).hash(CLAVE_DEMO)
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    if (opciones.soloSiVacia) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('rejana:seed'))`)
+      const { rows } = await tx.execute<{ hay: boolean }>(sql`select exists(select 1 from sedes) or exists(select 1 from usuarios) as hay`)
+      if (rows[0]?.hay) return false
+    }
     const repos = crearRepositorios(tx)
 
     // --- Sedes ---------------------------------------------------------------------------
@@ -564,22 +570,6 @@ export async function sembrar(
     }
 
     await repos.auditoria.registrar({ actorId: admin, actorRol: 'admin', accion: 'seed', entidad: 'sistema', entidadId: null, datos: { nota: 'Datos de prueba cargados' } })
+    return true
   })
-}
-
-const esPrincipal = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
-if (esPrincipal) {
-  if (process.env.NODE_ENV === 'production' && process.env.SEED_PERMITIR_PRODUCCION !== 'true') {
-    console.error('✖ El seed crea usuarios con contraseña conocida: no se ejecuta en producción.')
-    process.exit(1)
-  }
-  const conexion = conectarBD(process.env.DATABASE_URL!, { ssl: process.env.DATABASE_SSL === 'true', max: 2 })
-  const [{ n }] = (await conexion.db.execute<{ n: number }>(sql`select count(*)::int as n from sedes`)).rows as [{ n: number }]
-  if (n > 0) {
-    console.log('La base ya tiene datos; usa `pnpm db:reset` para empezar de cero.')
-  } else {
-    await sembrar(conexion.db, { pimienta: process.env.TOKENS_PEPPER ?? '' }) // falla si falta
-    console.log('✔ Seed completo')
-  }
-  await conexion.cerrar()
 }

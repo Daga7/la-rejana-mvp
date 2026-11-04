@@ -13,6 +13,7 @@ import {
   UNIDADES,
 } from './enums'
 import { telefonoE164 } from './formato'
+import { normalizarCodigoPasaporte } from './reglas'
 
 // ---------------------------------------------------------------------------
 // Piezas reutilizables
@@ -223,6 +224,36 @@ export const cerrarTurnoSchema = z.object({
   salidaEn: z.iso.datetime({ offset: true, error: 'Escribe la hora de salida' }),
   nota: z.string().trim().min(3, 'Cuéntanos por qué lo cierras tú').max(200),
 })
+
+// ---------------------------------------------------------------------------
+// Pasaporte de sellos
+// ---------------------------------------------------------------------------
+
+export const codigoPasaporte = z
+  .string({ error: 'Escribe el código del pasaporte' })
+  .max(20)
+  .transform(normalizarCodigoPasaporte)
+  .pipe(z.string().regex(/^[A-Z0-9]{8}$/, 'El código tiene 8 letras y números'))
+
+export const inscribirPasaporteSchema = z.object({
+  acepto: z.literal(true, { error: 'Para activar el pasaporte debes aceptar las condiciones' }),
+})
+
+/** La caja da el sello de una mesa ya cobrada, o canjea el premio en una mesa abierta. */
+export const sellarCuentaSchema = z.object({ codigo: codigoPasaporte, cuentaId: id })
+export const canjearPremioSchema = z.object({ codigo: codigoPasaporte, cuentaId: id })
+
+export const configPasaporteSchema = z
+  .object({
+    activo: z.boolean(),
+    sellosParaPremio: z.int().min(2, 'Mínimo 2 sellos').max(20, 'Máximo 20 sellos'),
+    montoMinimo: pesos,
+    premioProductoId: id.nullable(),
+    premioDescripcion: z.string().trim().max(140).nullable(),
+    vigenciaMeses: z.int().min(0).max(36),
+  })
+  .refine((c) => !c.activo || c.premioProductoId, { message: 'Elige el premio antes de activar el pasaporte', path: ['premioProductoId'] })
+export type ConfigPasaporteInput = z.infer<typeof configPasaporteSchema>
 
 export const suscripcionPushSchema = z.object({
   endpoint: z.url({ protocol: /^https$/, error: 'Suscripción inválida' }).max(1000),

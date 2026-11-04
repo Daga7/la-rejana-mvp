@@ -10,6 +10,10 @@ export function criptografiaNode(pimienta: string): Criptografia {
       // randomInt es uniforme (sin sesgo de módulo).
       return String(randomInt(0, 10 ** digitos)).padStart(digitos, '0')
     },
+    codigoAlfabeto(alfabeto, largo) {
+      // Un símbolo uniforme por posición (randomInt no tiene sesgo de módulo).
+      return Array.from({ length: largo }, () => alfabeto[randomInt(0, alfabeto.length)]).join('')
+    },
     huella(valor) {
       return createHmac('sha256', pimienta).update(valor).digest('base64url')
     },

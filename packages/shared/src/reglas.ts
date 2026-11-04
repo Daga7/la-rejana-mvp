@@ -12,3 +12,23 @@ export function propinaSugerida(consumo: number): number {
   const decima = (Math.round(consumo) * PORCENTAJE_PROPINA) / 100 // pesos, puede tener decimales
   return Math.floor(decima / 100 + 0.5) * 100
 }
+
+// --- Pasaporte de sellos -------------------------------------------------------------------
+
+/** Letras y números sin los que se confunden (0/O, 1/I/L): 31 símbolos; 8 caracteres ≈ 39,6 bits. */
+export const ALFABETO_PASAPORTE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+export const LARGO_CODIGO_PASAPORTE = 8
+
+/** «abcd efgh», «ABCD-EFGH» → «ABCDEFGH». */
+export function normalizarCodigoPasaporte(texto: string): string {
+  return texto.toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+/** «ABCDEFGH» → «ABCD-EFGH» (más fácil de dictar y de leer en la caja). */
+export function codigoPasaporteLegible(codigo: string): string {
+  return codigo.length === 8 ? `${codigo.slice(0, 4)}-${codigo.slice(4)}` : codigo
+}
+
+/** Versión de las condiciones del Pasaporte que acepta el cliente (Ley 1581: queda registrada). */
+export const VERSION_TERMINOS_PASAPORTE = '2026-11'
+

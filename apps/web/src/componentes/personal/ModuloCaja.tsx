@@ -6,16 +6,18 @@ import {
   minutosDesde,
   NOMBRE_ESTADO_MESA,
   NOMBRE_METODO_PAGO,
+  normalizarCodigoPasaporte,
   PORCENTAJE_PROPINA,
   propinaSugerida,
   telefonoLegible,
+  type ConsultaPasaporteDTO,
   type CuentaMesaDTO,
   type MetodoPago,
   type PedidoDomicilioDTO,
   type PedidoDTO,
   type SalonDTO,
 } from '@rejana/shared'
-import { Banknote, Bike, Check, ChevronDown, ChevronRight, Lock, Phone, Plus, QrCode, Trash2, UtensilsCrossed, XCircle } from 'lucide-react'
+import { Banknote, Bike, Check, ChevronDown, ChevronRight, Gift, Lock, Phone, Plus, QrCode, Stamp, Trash2, UtensilsCrossed, XCircle } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useState } from 'react'
 import useSWR from 'swr'
@@ -387,6 +389,7 @@ const lineaVacia = (metodo: MetodoPago = 'efectivo'): LineaPago => ({ metodo, mo
 function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => void }) {
   const { data, mutate } = useSWR<{ cuenta: CuentaMesaDTO }>(`/cuentas/${cuentaId}`, obtener)
   const [conPropina, setConPropina] = useState(false)
+  const [pasaporte, setPasaporte] = useState<{ codigo: string; cliente: ConsultaPasaporteDTO } | null>(null)
   const [pagos, setPagos] = useState<LineaPago[]>([lineaVacia()])
   const [enviando, setEnviando] = useState(false)
   const c = data?.cuenta
@@ -444,7 +447,15 @@ function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => voi
               })),
             },
           })
-          avisar(`Mesa ${cuenta.mesaNumero} cobrada y libre`)
+          // Con el código verificado, el sello del Pasaporte se da justo después de cobrar.
+          if (pasaporte) {
+            try {
+              const r = await api<{ cliente: ConsultaPasaporteDTO }>('/pasaporte/sellos', { metodo: 'POST', cuerpo: { codigo: pasaporte.codigo, cuentaId: cuenta.id } })
+              avisar(`Mesa ${cuenta.mesaNumero} cobrada. Sello para ${r.cliente.nombre}: ${Math.min(r.cliente.sellosVigentes, r.cliente.sellosParaPremio)} de ${r.cliente.sellosParaPremio}`)
+            } catch (err) {
+              avisar(`Mesa ${cuenta.mesaNumero} cobrada, pero sin sello: ${err instanceof ErrorApi ? err.message : 'no se pudo dar'}`, 'info')
+            }
+          } else avisar(`Mesa ${cuenta.mesaNumero} cobrada y libre`)
           onListo()
         } catch (err) {
           avisar(err instanceof ErrorApi ? err.message : 'No se pudo cobrar la mesa', 'error')
@@ -479,6 +490,8 @@ function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => voi
           {sinServir.length === 1 ? 'Hay una ronda sin servir' : `Hay ${sinServir.length} rondas sin servir`}: el mesero debe servirla o puedes cancelarla antes de cobrar.
         </p>
       )}
+
+      <PasaporteEnCaja cuentaId={cuenta.id} verificado={pasaporte} onVerificado={setPasaporte} onCanje={() => void mutate()} />
 
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" className="mt-0.5 h-5 w-5 accent-rosa" checked={conPropina} onChange={(e) => setConPropina(e.target.checked)} />
@@ -559,3 +572,82 @@ function CobroMesa({ cuentaId, onListo }: { cuentaId: string; onListo: () => voi
     </form>
   )
 }
+
+/**
+ * Pasaporte en la caja: con el código del cliente se ve su nombre de pila y sus sellos. Si completó la
+ * tarjeta, el premio se canjea aquí (entra a la cocina como una ronda gratis). El sello se da al cobrar.
+ */
+function PasaporteEnCaja({
+  cuentaId,
+  verificado,
+  onVerificado,
+  onCanje,
+}: {
+  cuentaId: string
+  verificado: { codigo: string; cliente: ConsultaPasaporteDTO } | null
+  onVerificado: (v: { codigo: string; cliente: ConsultaPasaporteDTO } | null) => void
+  onCanje: () => void
+}) {
+  const [codigo, setCodigo] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const limpio = normalizarCodigoPasaporte(codigo)
+
+  async function verificar() {
+    setOcupado(true)
+    try {
+      const r = await api<{ cliente: ConsultaPasaporteDTO }>(`/pasaporte/codigos/${limpio}`)
+      onVerificado({ codigo: limpio, cliente: r.cliente })
+    } catch (e) {
+      onVerificado(null)
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo verificar el código', 'error')
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  async function canjear() {
+    if (!verificado) return
+    setOcupado(true)
+    try {
+      const r = await api<{ cliente: ConsultaPasaporteDTO }>('/pasaporte/canjes', { metodo: 'POST', cuerpo: { codigo: verificado.codigo, cuentaId } })
+      onVerificado({ codigo: verificado.codigo, cliente: r.cliente })
+      avisar(`Premio canjeado: ${verificado.cliente.premioNombre} va para la cocina`)
+      onCanje()
+    } catch (e) {
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo canjear el premio', 'error')
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  return (
+    <fieldset className="grid gap-2 rounded-2xl border-2 border-tinta/15 p-3">
+      <legend className="flex items-center gap-1.5 px-1 text-xs font-bold uppercase text-tinta-soft">
+        <Stamp size={14} aria-hidden /> Pasaporte de sellos (opcional)
+      </legend>
+      {verificado ? (
+        <div className="grid gap-2 text-sm">
+          <p>
+            <b>{verificado.cliente.nombre}</b> · {Math.min(verificado.cliente.sellosVigentes, verificado.cliente.sellosParaPremio)} de {verificado.cliente.sellosParaPremio} sellos. Al cobrar recibe un sello si la compra llega al mínimo.
+          </p>
+          {verificado.cliente.premiosDisponibles > 0 && (
+            <button type="button" className="btn btn-amarillo btn-sm w-fit" disabled={ocupado} onClick={() => void canjear()}>
+              <Gift size={16} aria-hidden /> Canjear premio: {verificado.cliente.premioNombre}
+            </button>
+          )}
+          <button type="button" className="w-fit text-xs font-bold underline" onClick={() => (onVerificado(null), setCodigo(''))}>
+            Quitar el pasaporte
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input className="campo font-mono uppercase" maxLength={9} value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="ABCD-EFGH" aria-label="Código del pasaporte del cliente" autoComplete="off" />
+          <button type="button" className="btn btn-blanco shrink-0" disabled={ocupado || limpio.length !== 8} onClick={() => void verificar()}>
+            Verificar
+          </button>
+        </div>
+      )}
+    </fieldset>
+  )
+}
+

@@ -11,6 +11,7 @@ import { rutasBuzon } from './adapters/http/rutas/buzon'
 import { rutasMenu } from './adapters/http/rutas/menu'
 import { manejadorUbicacion, rutasDomicilios } from './adapters/http/rutas/domicilios'
 import { rutasMesas } from './adapters/http/rutas/mesas'
+import { rutasPasaporte } from './adapters/http/rutas/pasaporte'
 import { rutasPedidos } from './adapters/http/rutas/pedidos'
 import { rutasTurnos } from './adapters/http/rutas/turnos'
 import { rutasSalud } from './adapters/http/rutas/salud'
@@ -39,6 +40,7 @@ export async function crearApp(
   rutasPedidos(app, c)
   rutasMesas(app, c)
   rutasTurnos(app, c)
+  rutasPasaporte(app, c)
   rutasDomicilios(app, c)
   rutasAdmin(app, c)
   rutasBuzon(app, c)

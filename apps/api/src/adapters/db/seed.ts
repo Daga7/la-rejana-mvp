@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
-import { VERSION_PRIVACIDAD } from '@rejana/shared'
+import { ALFABETO_PASAPORTE, LARGO_CODIGO_PASAPORTE, VERSION_PRIVACIDAD, VERSION_TERMINOS_PASAPORTE } from '@rejana/shared'
 import { hasherBcrypt } from '../seguridad/hasher-bcrypt'
 import { conectarBD, type BaseDatos } from './cliente'
 import { crearRepositorios } from './repos'
@@ -543,6 +543,24 @@ export async function sembrar(
       }
       if (filas.length) await tx.insert(t.turnos).values(filas)
       log(`✔ ${filas.length} turnos de la última semana`)
+    }
+
+    // --- Pasaporte de sellos: activo, con la clienta de prueba inscrita y 5 sellos ------------------
+    if (opciones.datosDemo !== false) {
+      await repos.pasaporte.guardarConfig(
+        { activo: true, sellosParaPremio: 8, montoMinimo: 20000, premioProductoId: productos['choriperro-clasico']!.id, premioDescripcion: 'Un choriperro clásico de regalo', vigenciaMeses: 6 },
+        admin,
+      )
+      const codigo = Array.from({ length: LARGO_CODIGO_PASAPORTE }, () => R.pick(ALFABETO_PASAPORTE.split(''))).join('')
+      await repos.pasaporte.inscribir({ clienteId: cliente, codigo, aceptadoEn: new Date(ahora.getTime() - 20 * 86_400_000), versionTerminos: VERSION_TERMINOS_PASAPORTE })
+      const compras = await tx
+        .select({ id: t.pedidos.id, sedeId: t.pedidos.sedeId, subtotal: t.pedidos.subtotal, cerradoEn: t.pedidos.cerradoEn })
+        .from(t.pedidos)
+        .where(sql`${t.pedidos.clienteId} = ${cliente} and ${t.pedidos.estadoPago} = 'pagado' and ${t.pedidos.cerradoEn} is not null and ${t.pedidos.subtotal} >= 20000`)
+        .orderBy(sql`${t.pedidos.cerradoEn} desc`)
+        .limit(5)
+      for (const c of compras) await repos.pasaporte.crearSello({ clienteId: cliente, sedeId: c.sedeId, pedidoId: c.id, cuentaId: null, monto: c.subtotal, otorgadoPor: cajaVillaluz, creadoEn: c.cerradoEn! })
+      log(`✔ Pasaporte activo: cliente@larejana.test con ${compras.length} sellos (código ${codigo})`)
     }
 
     await repos.auditoria.registrar({ actorId: admin, actorRol: 'admin', accion: 'seed', entidad: 'sistema', entidadId: null, datos: { nota: 'Datos de prueba cargados' } })

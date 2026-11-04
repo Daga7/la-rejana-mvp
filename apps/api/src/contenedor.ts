@@ -7,6 +7,7 @@ import { crearCasosAsistente } from './application/asistente'
 import { crearCasosAuth } from './application/auth'
 import { crearCasosBuzon } from './application/buzon'
 import { crearCasosMesas } from './application/mesas'
+import { crearCasosPasaporte, type CasosPasaporte } from './application/pasaporte'
 import { crearCasosTurnos } from './application/turnos'
 import { crearCasosReportes } from './application/reportes'
 import { crearCasosDomicilios, type CasosDomicilios } from './application/domicilios'
@@ -86,6 +87,7 @@ export interface Casos {
   pedidos: ReturnType<typeof crearCasosPedidos>
   mesas: ReturnType<typeof crearCasosMesas>
   turnos: ReturnType<typeof crearCasosTurnos>
+  pasaporte: CasosPasaporte
   push: ReturnType<typeof crearCasosPush>
   domicilios: CasosDomicilios
   reportes: ReturnType<typeof crearCasosReportes>
@@ -172,6 +174,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
   const inventario = crearCasosInventario({ uow, reloj, eventos, log })
   // pedidos y domicilios se conocen mutuamente a través de funciones (sin importarse entre sí).
   let domicilios: CasosDomicilios | null = null
+  let pasaporte: CasosPasaporte | null = null
   const pedidos = crearCasosPedidos({
     uow,
     reloj,
@@ -183,7 +186,9 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     permitirFueraDeHorario: env.PERMITIR_PEDIDOS_FUERA_DE_HORARIO,
     eta: (id) => domicilios?.eta(id) ?? null,
     alSalirDeRecorrido: (id) => domicilios?.pedidoCerrado(id),
+    alCerrarPedido: async (repos, p, actorId) => pasaporte?.sellarPedidoAlCerrar(repos, p, actorId),
   })
+  pasaporte = crearCasosPasaporte({ uow, reloj, cripto, eventos, log, pedidos })
   domicilios = crearCasosDomicilios({ uow, reloj, mapas, eventos, log, pedidos: () => pedidos })
   const reportes = crearCasosReportes({ uow, reloj })
   const casos: Casos = {
@@ -193,6 +198,7 @@ export function crearContenedor(env: Env, log: Logger, s: Sobrescrituras = {}): 
     pedidos,
     mesas: crearCasosMesas({ uow, reloj, eventos, log }),
     turnos: crearCasosTurnos({ uow, reloj, log }),
+    pasaporte,
     push: crearCasosPush({ uow, push, tokens, pedidos }),
     domicilios,
     reportes,

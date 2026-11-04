@@ -597,6 +597,90 @@ export const turnos = pgTable(
   ],
 )
 
+// ---------------------------------------------------------------------------
+// Pasaporte de sellos (programa de fidelidad, con autorización expresa del cliente)
+// ---------------------------------------------------------------------------
+
+/** Configuración del programa (una sola fila, id = 1). La crea la migración, apagada. */
+export const pasaporteConfig = pgTable(
+  'pasaporte_config',
+  {
+    id: integer('id').primaryKey(),
+    activo: boolean('activo').notNull().default(false),
+    sellosParaPremio: integer('sellos_para_premio').notNull().default(8),
+    montoMinimo: integer('monto_minimo').notNull().default(0),
+    premioProductoId: uuid('premio_producto_id').references(() => productos.id, { onDelete: 'set null' }),
+    premioDescripcion: text('premio_descripcion'),
+    vigenciaMeses: integer('vigencia_meses').notNull().default(6),
+    actualizadoEn: actualizadoEn(),
+    actualizadoPor: uuid('actualizado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    check('pasaporte_config_unica_ck', sql`${t.id} = 1`),
+    check('pasaporte_config_valores_ck', sql`${t.sellosParaPremio} between 2 and 20 and ${t.montoMinimo} >= 0 and ${t.vigenciaMeses} between 0 and 36`),
+  ],
+)
+
+/** Inscripción del cliente: su código personal y cuándo aceptó las condiciones (Ley 1581). */
+export const pasaportes = pgTable(
+  'pasaportes',
+  {
+    clienteId: uuid('cliente_id')
+      .primaryKey()
+      .references(() => usuarios.id, { onDelete: 'cascade' }),
+    codigo: text('codigo').notNull(),
+    aceptadoEn: timestamp('aceptado_en', { withTimezone: true, mode: 'date' }).notNull(),
+    versionTerminos: text('version_terminos').notNull(),
+    creadoEn: creadoEn(),
+  },
+  (t) => [uniqueIndex('pasaportes_codigo_uq').on(t.codigo)],
+)
+
+export const canjesPasaporte = pgTable(
+  'canjes_pasaporte',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // null si el cliente salió del programa (el canje queda para la contabilidad del inventario, sin datos personales).
+    clienteId: uuid('cliente_id').references(() => usuarios.id, { onDelete: 'set null' }),
+    sedeId: uuid('sede_id')
+      .notNull()
+      .references(() => sedes.id, { onDelete: 'restrict' }),
+    cuentaId: uuid('cuenta_id').references(() => cuentasMesa.id, { onDelete: 'set null' }),
+    pedidoId: uuid('pedido_id').references(() => pedidos.id, { onDelete: 'set null' }),
+    sellosUsados: integer('sellos_usados').notNull(),
+    premioNombre: text('premio_nombre').notNull(),
+    canjeadoPor: uuid('canjeado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+    creadoEn: creadoEn(),
+  },
+  (t) => [index('canjes_pasaporte_cliente_idx').on(t.clienteId, t.creadoEn)],
+)
+
+/** Un sello por compra pagada: los índices únicos impiden sellar dos veces el mismo pedido o cuenta. */
+export const sellos = pgTable(
+  'sellos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clienteId: uuid('cliente_id')
+      .notNull()
+      .references(() => usuarios.id, { onDelete: 'cascade' }),
+    sedeId: uuid('sede_id')
+      .notNull()
+      .references(() => sedes.id, { onDelete: 'restrict' }),
+    pedidoId: uuid('pedido_id').references(() => pedidos.id, { onDelete: 'restrict' }),
+    cuentaId: uuid('cuenta_id').references(() => cuentasMesa.id, { onDelete: 'restrict' }),
+    monto: integer('monto').notNull(),
+    otorgadoPor: uuid('otorgado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+    canjeId: uuid('canje_id').references(() => canjesPasaporte.id, { onDelete: 'set null' }),
+    creadoEn: creadoEn(),
+  },
+  (t) => [
+    check('sellos_compra_ck', sql`(${t.pedidoId} is null) <> (${t.cuentaId} is null)`),
+    uniqueIndex('sellos_pedido_uq').on(t.pedidoId).where(sql`${t.pedidoId} is not null`),
+    uniqueIndex('sellos_cuenta_uq').on(t.cuentaId).where(sql`${t.cuentaId} is not null`),
+    index('sellos_cliente_idx').on(t.clienteId, t.creadoEn),
+  ],
+)
+
 export const buzonMensajes = pgTable(
   'buzon_mensajes',
   {

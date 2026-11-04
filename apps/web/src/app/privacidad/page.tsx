@@ -49,6 +49,18 @@ export default function Privacidad() {
           se deja de compartir y se borra la última posición guardada.
         </p>
 
+        <h2>Pasaporte de sellos (opcional)</h2>
+        <p>
+          Solo si activas tu pasaporte y lo autorizas de forma expresa, registramos la fecha, la sede y el valor de las compras que te dan
+          sellos y de los premios que canjeas, para llevar tu tarjeta. En la caja te identificas con un código personal y el personal solo
+          ve tu nombre de pila y tus sellos. Guardamos la fecha y la versión de las condiciones que aceptaste. Puedes cambiar tu código o
+          salir del programa cuando quieras desde la aplicación: al salir borramos tu código y tus sellos; los premios ya entregados quedan
+          registrados sin tus datos, solo para el control del inventario.
+        </p>
+
+        <h2>Turnos del personal</h2>
+        <p>Si trabajas con nosotros, registramos la hora de entrada y de salida de cada turno para calcular las horas trabajadas.</p>
+
         <h2>Tus derechos</h2>
         <p>Como titular puedes, de forma gratuita:</p>
         <ul>
@@ -78,7 +90,7 @@ export default function Privacidad() {
         </p>
 
         <h2>Vigencia</h2>
-        <p>Este aviso rige desde el 1 de noviembre de 2026. Si lo cambiamos de forma importante, te lo informaremos en la aplicación.</p>
+        <p>Este aviso rige desde el 1 de noviembre de 2026 (actualizado el 4 de noviembre de 2026 con el Pasaporte de sellos y los turnos). Si lo cambiamos de forma importante, te lo informaremos en la aplicación.</p>
       </article>
     </main>
   )

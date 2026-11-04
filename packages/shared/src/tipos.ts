@@ -363,3 +363,49 @@ export interface ReporteTurnosDTO {
   resumen: ResumenTurnosDTO[]
 }
 
+// --- Pasaporte de sellos ---------------------------------------------------------------------
+
+export interface ProgramaPasaporteDTO {
+  activo: boolean
+  sellosParaPremio: number
+  /** Compra mínima (consumo, sin domicilio ni propina) para ganar un sello. */
+  montoMinimo: number
+  premioNombre: string | null
+  premioDescripcion: string | null
+  /** Meses que dura cada sello (0: no vencen). */
+  vigenciaMeses: number
+}
+
+export interface MovimientoPasaporteDTO {
+  tipo: 'sello' | 'canje'
+  fecha: string
+  sedeNombre: string
+  detalle: string
+}
+
+/** Lo que ve el cliente en su pasaporte. */
+export interface PasaporteClienteDTO {
+  programa: ProgramaPasaporteDTO
+  inscrito: boolean
+  codigo: string | null
+  sellosVigentes: number
+  premiosDisponibles: number
+  /** Cuándo vence el sello vigente más antiguo (si los sellos vencen). */
+  proximoVencimiento: string | null
+  historial: MovimientoPasaporteDTO[]
+}
+
+/** Lo único que ve la caja al escribir el código: nombre de pila y sellos (minimización de datos). */
+export interface ConsultaPasaporteDTO {
+  nombre: string
+  sellosVigentes: number
+  sellosParaPremio: number
+  premiosDisponibles: number
+  premioNombre: string | null
+}
+
+export interface ConfigPasaporteDTO extends ProgramaPasaporteDTO {
+  premioProductoId: string | null
+  estadisticas: { inscritos: number; sellosMes: number; canjesMes: number }
+}
+

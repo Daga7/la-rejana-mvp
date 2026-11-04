@@ -602,6 +602,54 @@ export interface RepoTurnos {
   listar(filtro: { desde: Date; hasta: Date; sedeId?: string; usuarioId?: string }): Promise<TurnoRegistro[]>
 }
 
+// --- Pasaporte de sellos ---------------------------------------------------------------------
+
+export interface ConfigPasaporte {
+  activo: boolean
+  sellosParaPremio: number
+  montoMinimo: number
+  premioProductoId: string | null
+  premioNombre: string | null
+  premioDescripcion: string | null
+  vigenciaMeses: number
+}
+
+export interface PasaporteRegistro {
+  clienteId: string
+  clienteNombre: string
+  clienteActivo: boolean
+  codigo: string
+  aceptadoEn: Date
+}
+
+export interface SelloRegistro {
+  id: string
+  sedeNombre: string
+  monto: number
+  creadoEn: Date
+}
+
+export interface RepoPasaporte {
+  /** Configuración del programa (si falta la fila, los valores por defecto con el programa apagado). */
+  config(): Promise<ConfigPasaporte>
+  guardarConfig(c: Omit<ConfigPasaporte, 'premioNombre'>, actorId: string): Promise<void>
+  deCliente(clienteId: string): Promise<PasaporteRegistro | null>
+  porCodigo(codigo: string): Promise<PasaporteRegistro | null>
+  /** Falla con violación de unicidad (23505) si el código ya existe. */
+  inscribir(datos: { clienteId: string; codigo: string; aceptadoEn: Date; versionTerminos: string }): Promise<void>
+  cambiarCodigo(clienteId: string, codigo: string): Promise<void>
+  /** Salida del programa: borra la inscripción y los sellos; los canjes quedan sin datos del cliente. */
+  eliminar(clienteId: string): Promise<void>
+  /** Sellos sin canjear desde `desde` (null: todos), del más antiguo al más nuevo. `bloquear`: FOR UPDATE. */
+  sellosVigentes(clienteId: string, desde: Date | null, opciones?: { bloquear?: boolean }): Promise<SelloRegistro[]>
+  /** Falla con violación de unicidad (23505) si esa compra ya tiene sello. */
+  crearSello(datos: { clienteId: string; sedeId: string; pedidoId: string | null; cuentaId: string | null; monto: number; otorgadoPor: string | null; creadoEn?: Date }): Promise<void>
+  crearCanje(datos: { clienteId: string; sedeId: string; cuentaId: string; pedidoId: string; sellosUsados: number; premioNombre: string; canjeadoPor: string }): Promise<string>
+  marcarCanjeados(selloIds: string[], canjeId: string): Promise<void>
+  historial(clienteId: string, limite: number): Promise<{ tipo: 'sello' | 'canje'; fecha: Date; sedeNombre: string; detalle: string }[]>
+  estadisticas(desde: Date): Promise<{ inscritos: number; sellosMes: number; canjesMes: number }>
+}
+
 export interface Recorrido {
   id: string
   sedeId: string
@@ -729,6 +777,7 @@ export interface Repositorios {
   pedidos: RepoPedidos
   mesas: RepoMesas
   turnos: RepoTurnos
+  pasaporte: RepoPasaporte
   recorridos: RepoRecorridos
   suscripciones: RepoSuscripciones
   buzon: RepoBuzon

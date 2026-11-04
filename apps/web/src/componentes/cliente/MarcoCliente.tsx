@@ -1,7 +1,7 @@
 'use client'
 
 import { cop } from '@rejana/shared'
-import { ReceiptText, ShoppingBag, UserRound, UtensilsCrossed } from 'lucide-react'
+import { ReceiptText, ShoppingBag, Stamp, UserRound, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSyncExternalStore } from 'react'
@@ -59,6 +59,9 @@ export function EncabezadoCliente() {
           <Link prefetch={false} href="/mis-pedidos" className={enlace('/mis-pedidos')}>
             Mis pedidos
           </Link>
+          <Link prefetch={false} href="/pasaporte" className={enlace('/pasaporte')}>
+            Pasaporte
+          </Link>
           <Link prefetch={false} href={usuario ? '/cuenta' : '/ingresar?volver=/menu'} className={enlace('/cuenta')}>
             {usuario ? usuario.nombre.split(' ')[0] : 'Ingresar'}
           </Link>
@@ -83,6 +86,9 @@ export function NavInferior() {
       </Link>
       <Link prefetch={false} href="/mis-pedidos" className={clase(ruta.startsWith('/mis-pedidos') || ruta.startsWith('/pedido'))}>
         <ReceiptText size={22} aria-hidden /> Pedidos
+      </Link>
+      <Link prefetch={false} href="/pasaporte" className={clase(ruta.startsWith('/pasaporte'))}>
+        <Stamp size={22} aria-hidden /> Pasaporte
       </Link>
       <Link prefetch={false} href="/carrito" className={clase(ruta.startsWith('/carrito') || ruta.startsWith('/checkout'))}>
         <span className="relative">

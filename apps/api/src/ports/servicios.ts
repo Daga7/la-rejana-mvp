@@ -32,6 +32,8 @@ export interface Criptografia {
   tokenAleatorio(bytes?: number): string
   /** Código numérico uniforme (sin sesgo de módulo). */
   codigoNumerico(digitos: number): string
+  /** Código aleatorio uniforme con los símbolos de `alfabeto`. */
+  codigoAlfabeto(alfabeto: string, largo: number): string
   /** HMAC-SHA256 con la pimienta del servidor; se usa para guardar tokens y códigos. */
   huella(valor: string): string
   compararSeguro(a: string, b: string): boolean

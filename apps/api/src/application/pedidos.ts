@@ -13,7 +13,7 @@ import {
 import { ErrorDominio, err } from '../domain/errores'
 import { consumoPorReceta, faltantes, productosAfectados, r3, unidadesPreparables } from '../domain/inventario'
 import { calcularTotales, clientePuedeCancelar, esDomicilio, esMesa, meseroPuedeCancelar, puedeCerrarse, reponerPorDefecto, validarPago, validarTransicion } from '../domain/pedido'
-import { exigirPermiso, exigirSede, puedeOperarSede, tienePermiso, type Actor } from '../domain/permisos'
+import { exigirPermiso, exigirSede, puedeOperarSede, tienePermiso, type Actor, type ActorUsuario } from '../domain/permisos'
 import { dentroDeCobertura, estaAbierta } from '../domain/sede'
 import type { EventoPedido, ItemPedidoRegistro, NuevoPedido, PedidoRegistro, Repositorios, UnidadDeTrabajo } from '../ports/repositorios'
 import type { Criptografia, Logger, Notificador, PublicadorEventos, Reloj } from '../ports/servicios'
@@ -33,6 +33,8 @@ export interface DepsPedidos {
   eta?: (pedidoId: string) => number | null
   /** Aviso al módulo de domicilios cuando un pedido sale del recorrido (p. ej., cancelado en camino). */
   alSalirDeRecorrido?: (pedidoId: string) => void
+  /** Al cerrar un pedido (dentro de la misma transacción): p. ej., el sello del Pasaporte. */
+  alCerrarPedido?: (repos: Repositorios, p: PedidoRegistro, actorId: string) => Promise<void>
 }
 
 export function aPedidoDTO(p: PedidoRegistro, items: ItemPedidoRegistro[], eventos: EventoPedido[], eta: number | null = null): PedidoDTO {
@@ -494,8 +496,26 @@ export function crearCasosPedidos(d: DepsPedidos) {
         if (!puedeCerrarse(p.estado, p.estadoPago)) throw err.validacion('Solo se cierra un pedido entregado y pagado')
         await repos.pedidos.actualizar(p.id, { cerradoEn: reloj.ahora(), cerradoPor: a.id })
         await auditar(repos, actor, 'pedido.cerrar', 'pedido', p.id, { numero: p.numero }, ctx.ip)
+        await d.alCerrarPedido?.(repos, { ...p, estadoPago: 'pagado' }, a.id)
       })
       return (await publicar(id, { push: false }))!
+    },
+
+    /**
+     * Ronda de premio del Pasaporte (precio cero), dentro de la transacción de quien canjea: la cocina la
+     * prepara y los insumos se descuentan por receta como en cualquier ronda. La cuenta ya viene bloqueada.
+     */
+    async rondaPremio(repos: Repositorios, a: ActorUsuario, cuenta: { id: string; sedeId: string }, productoId: string): Promise<PedidoRegistro> {
+      const prep = await prepararLineas(cuenta.sedeId, [{ productoId, cantidad: 1, notas: 'Premio del Pasaporte' }])
+      const conPremio = { ...prep, lineas: prep.lineas.map((l) => ({ ...l, precioUnitario: 0, subtotal: 0 })) }
+      await reservarInsumos(repos, cuenta.sedeId, conPremio, 'El premio no se puede preparar ahora.')
+      const ronda = await repos.mesas.siguienteRonda(cuenta.id)
+      return crearYDescontar(
+        repos,
+        { canal: 'mesa', sedeId: cuenta.sedeId, cuentaId: cuenta.id, ronda, notas: null, subtotal: 0, costoEnvio: 0, total: 0, claveIdempotencia: null },
+        conPremio,
+        { id: a.id, rol: a.rol },
+      )
     },
 
     async pagos(actor: Actor, id: string) {

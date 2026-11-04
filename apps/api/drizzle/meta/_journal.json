@@ -43,6 +43,13 @@
       "when": 1793831995183,
       "tag": "0005_juntar_mesas",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793832348965,
+      "tag": "0006_pasaporte",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { Boxes, ClipboardList, Clock, LayoutDashboard, MapPinned, MessageSquareHeart, Sparkles, UtensilsCrossed, Users } from 'lucide-react'
+import { Boxes, ClipboardList, Clock, LayoutDashboard, MapPinned, MessageSquareHeart, Sparkles, Stamp, UtensilsCrossed, Users } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -11,6 +11,7 @@ const SECCIONES = [
   { href: '/admin/sedes', texto: 'Sedes', icono: MapPinned },
   { href: '/admin/empleados', texto: 'Empleados', icono: Users },
   { href: '/admin/turnos', texto: 'Turnos', icono: Clock },
+  { href: '/admin/pasaporte', texto: 'Pasaporte', icono: Stamp },
   { href: '/admin/buzon', texto: 'Buzón', icono: MessageSquareHeart },
   { href: '/admin/asistente', texto: 'Asistente', icono: Sparkles },
   { href: '/admin/auditoria', texto: 'Auditoría', icono: ClipboardList },

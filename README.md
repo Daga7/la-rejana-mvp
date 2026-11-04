@@ -21,14 +21,14 @@ pnpm dev                      # API en :4000 y web en :3000
 ```
 
 - Web: http://localhost:3000 · Correos de desarrollo: http://localhost:8025
-- Usuarios de prueba (contraseña `Rejana2026*`): `admin@larejana.test`, `cocina.villaluz@larejana.test`, `caja.villaluz@larejana.test`, `domi.villaluz@larejana.test`, `mesero.villaluz@larejana.test`, `cliente@larejana.test` (y los equivalentes `*.normandia@larejana.test`).
+- Usuarios de prueba (contraseña `Rejana2026*`): `admin@larejana.test`, `cocina.villaluz@larejana.test`, `caja.villaluz@larejana.test`, `domi.villaluz@larejana.test`, `mesero.villaluz@larejana.test`, `cliente@larejana.test` (y los equivalentes `*.normandia@larejana.test`). En Villaluz hay mesas ocupadas de ejemplo para probar el módulo de mesero.
 
 ### Comandos útiles
 
 | Comando | Qué hace |
 |---|---|
 | `pnpm test` | Pruebas (unitarias + integración contra `DATABASE_URL_TEST`) |
-| `CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e` | Pruebas de punta a punta en el navegador, con la app corriendo (`E2E_URL` si no es `http://localhost:3000`) |
+| `CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e` | Pruebas de punta a punta en el navegador, con la app corriendo (`E2E_URL` si no es `http://localhost:3000`). La suite inicia sesión muchas veces: pon `LIMITE_INGRESOS_POR_MINUTO=60` en el `.env` local (en producción se ignora) |
 | `pnpm typecheck` | Verificación de tipos en todos los paquetes |
 | `pnpm build` | Compila API (esbuild) y web (Next standalone opcional) |
 | `pnpm db:generate` | Genera una migración nueva a partir de `schema.ts` |

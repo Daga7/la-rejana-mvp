@@ -15,6 +15,7 @@
 | 7. Buzón de quejas | ✅ Hecha | `feat(buzon): add anonymous staff feedback mailbox` |
 | 8. Asistente de WhatsApp con PDF | ✅ Hecha | `feat(asistente): add whatsapp report assistant with pdf` |
 | Cierre: seguridad, audit, Lighthouse, INFORME | ✅ Hecho | `fix(seguridad): pre-hash passwords and harden api caching`, `perf(web): reach lighthouse 90+ on public pages`, `docs: add final report and closing notes` |
+| 9. Módulo de mesero (después del MVP) | ✅ Hecha | `feat(mesero): add table service and checkout` |
 
 ## Fase 1 — qué quedó
 
@@ -89,15 +90,23 @@
 - **Pruebas**: 130 de la API y 7 e2e en navegador contra el build de producción (la de cocina ahora crea su propio pedido).
 - **Informe final** en [INFORME.md](INFORME.md).
 
+## Fase 9 — módulo de mesero
+
+- **Modelo**: tablas `mesas` y `cuentas_mesa` (migración `0002_mesas`). Cada ronda es un pedido de canal `mesa` con su cuenta y número de ronda; una restricción en la base separa los datos de domicilio de los de mesa. Los pagos pueden ser de un pedido o de una cuenta.
+- **API**: `application/mesas.ts` (salón, abrir, detalle, personas y «pedir la cuenta», liberar, cobro dividido con propina, mesas del admin) y `crearRonda` en `application/pedidos.ts` (misma transacción con bloqueo y descuento por receta que un domicilio, con idempotencia). Transiciones por canal en `domain/permisos.ts` (en la mesa: la cocina prepara, el mesero sirve, no hay «en camino»). Sala de tiempo real `mesas:<sede>` solo para rondas y cuentas.
+- **Web**: `/mesero` (salón por zonas con colores y texto por estado, «Listo para servir» con sonido y vibración, «Mis mesas», abrir mesa) y `/mesero/cuenta/[id]` (menú por categorías, borrador con notas y cantidades, envío a la cocina, rondas con estado, «Ya lo serví», cancelar en cola, pedir la cuenta, liberar). En cocina, cada tarjeta dice si es domicilio o «Mesa N · zona · ronda». En caja, pestaña **Mesas** con el cobro (pagos divididos, partes iguales, efectivo con cambio, QR y propina voluntaria). En admin, **Sedes › Mesas**.
+- **Pruebas**: 11 de integración (flujo completo con descuento exacto por receta, permisos por rol y sede, idempotencia, stock insuficiente, cancelaciones, reportes, tiempo real sin datos de domicilio) y 5 unitarias. **Total 146 en verde.** E2E: el mesero abre la mesa, envía la ronda, la recibe lista en vivo, la sirve y la caja cobra la cuenta dividida (8 e2e en verde).
+- **Además**: contraste AA en los chips del personal y límite de ingresos configurable solo fuera de producción (para la suite e2e).
+
 ## Siguiente paso exacto
 
-**El MVP está cerrado.** Cuando Daniel cree el repositorio en GitHub y la cuenta de Railway (y Vercel, si la quiere): conectar el remoto, hacer el primer push (solo cuando él lo pida) y desplegar según el README; luego crear el primer administrador con `node dist/crear-admin.js`. Después: MFA para el personal y el administrador, monitoreo y, más adelante, el módulo del mesero (ver PENDIENTES.md).
+**MVP y módulo de mesero listos.** Cuando Daniel cree el repositorio en GitHub y la cuenta de Railway (y Vercel, si la quiere): conectar el remoto, hacer el primer push (solo cuando él lo pida) y desplegar según el README; luego crear el primer administrador con `node dist/crear-admin.js`. Después: MFA para el personal y el administrador, monitoreo y lo que quedó del mesero en PENDIENTES (plano con posición de las mesas, trasladar o juntar mesas, turnos).
 
 ## Cómo verificar lo hecho
 
 ```bash
 pnpm db:up && pnpm db:reset
 pnpm --filter @rejana/api test     # pruebas unitarias + integración
-CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e   # con la app corriendo (pnpm dev; o E2E_URL=… contra un build)
+CHROMIUM_PATH=/usr/bin/chromium pnpm --filter @rejana/web e2e   # con la app corriendo (pnpm dev, con LIMITE_INGRESOS_POR_MINUTO=60 en .env; o E2E_URL=… contra un build)
 pnpm dev                           # http://localhost:3000 y http://localhost:4000/api/salud
 ```

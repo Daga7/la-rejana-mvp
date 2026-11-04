@@ -47,6 +47,7 @@ Meta WhatsApp ──webhook firmado──▶ api
 | 7 | Buzón | Quejas/sugerencias de empleados con opción anónima real (sin rastro del autor) |
 | 8 | WhatsApp + PDF | Webhook firmado, lista blanca de admins, nota de voz → STT → IA → catálogo cerrado de reportes → PDF con gráficas → respuesta por el chat |
 | — | Cierre | Revisión de seguridad, `pnpm audit`, Lighthouse, `INFORME.md` |
+| 9 | Mesero (después del MVP) | Salón por sede con mesas y zonas, cuentas de mesa con rondas a la cocina (descuento por receta), servir en vivo, pedir la cuenta, cobro en la caja con pagos divididos y propina voluntaria, mesas administradas por sede, permisos por rol y sede, tests |
 
 ## 3. Modelo de datos (PostgreSQL)
 
@@ -74,10 +75,12 @@ Convenciones: `uuid` como PK (`gen_random_uuid()`), dinero en **pesos enteros (C
 Un producto está **agotado** si su interruptor está apagado o si `min(floor(stock_insumo / cantidad_receta)) < 1` para alguno de sus insumos en esa sede.
 
 ### Pedidos y domicilios
-- **pedidos**: id, numero (secuencia), sede_id, canal (`domicilio`), cliente_id (null = invitado), estado (`recibido → en_preparacion → listo → en_camino → entregado`, o `cancelado`), contacto_nombre, contacto_telefono, direccion, direccion_detalle, barrio, lat, lng, notas, metodo_pago (`efectivo|qr`), paga_con, subtotal, costo_envio, total, estado_pago (`pendiente|pagado`), domiciliario_id, recorrido_id, token_seguimiento_hash (invitados), clave_idempotencia, motivo_cancelacion, timestamps de cada hito, cerrado_en, cerrado_por.
+- **mesas** (fase 9): id, sede_id, numero (único por sede), zona, puestos, activa.
+- **cuentas_mesa** (fase 9): id, sede_id, mesa_id, mesero_id, comensales, estado (`abierta|cerrada|cancelada`; a lo sumo una abierta por mesa), cuenta_pedida_en, propina, estado_pago, abierta_en, cerrada_en, cerrada_por.
+- **pedidos**: id, numero (secuencia), sede_id, canal (`domicilio|mesa`; en mesa: cuenta_id + ronda, sin datos de entrega), cliente_id (null = invitado), estado (`recibido → en_preparacion → listo → en_camino → entregado`, o `cancelado`), contacto_nombre, contacto_telefono, direccion, direccion_detalle, barrio, lat, lng, notas, metodo_pago (`efectivo|qr`), paga_con, subtotal, costo_envio, total, estado_pago (`pendiente|pagado`), domiciliario_id, recorrido_id, token_seguimiento_hash (invitados), clave_idempotencia, motivo_cancelacion, timestamps de cada hito, cerrado_en, cerrado_por.
 - **pedido_items**: id, pedido_id, producto_id, nombre y precio_unitario (copias históricas), cantidad, notas, subtotal.
 - **pedido_eventos**: id, pedido_id, estado, actor_id, actor_rol, nota, creado_en (historial).
-- **pagos**: id, pedido_id, metodo, monto, recibido, cambio, referencia, registrado_por.
+- **pagos**: id, pedido_id **o** cuenta_id (mesa), metodo, monto, recibido, cambio, referencia, registrado_por.
 - **recorridos**: id, sede_id, domiciliario_id, estado (`activo|finalizado`), orden_paradas (jsonb), ultima_lat/lng/ubicacion_en (se borran al finalizar), iniciado_en, finalizado_en.
 - **suscripciones_push**: id, endpoint (único), p256dh, auth, usuario_id (null = invitado) · **pedido_suscripciones** (pedido_id, suscripcion_id).
 
@@ -98,6 +101,7 @@ Un producto está **agotado** si su interruptor está apagado o si `min(floor(st
 | Domiciliario | `GET /api/domiciliario/pedidos`, `POST /api/domiciliario/ruta`, `/recorridos`, `/recorridos/:id/finalizar`, `/ubicacion`, `POST /api/pedidos/:id/entregar` |
 | Push / tiempo real | `GET /api/push/clave-publica`, `POST/DELETE /api/push/suscripciones`, `POST /api/realtime/ticket` |
 | Admin | CRUD sedes, categorías, productos (+ receta y menú por sede), insumos, inventario (ajustes/entradas), empleados (invitar, rol, sede, activo), reportes, tablero, auditoría, buzón, asistente |
+| Mesas (fase 9) | `GET /api/mesas/:sede/salon`, `POST /api/mesas/:sede/cuentas`, `GET/PATCH /api/cuentas/:id`, `POST /api/cuentas/:id/rondas` (Idempotency-Key), `/liberar`, `/cobrar` · admin: `GET/POST /api/admin/sedes/:id/mesas`, `PUT /api/admin/mesas/:id` |
 | Buzón | `POST /api/buzon` |
 | WhatsApp | `GET/POST /api/webhooks/whatsapp` (verificación + firma `X-Hub-Signature-256`) |
 

@@ -27,6 +27,7 @@ Integraciones que ya tienen adaptador real **y** adaptador de desarrollo. Mientr
 - **Monitoreo**: errores y caídas con avisos (Sentry, Better Stack u otro). Hoy solo hay logs estructurados y auditoría.
 - Varias réplicas de la API requieren Redis para rate limiting y Socket.IO (hoy, un solo proceso).
 - Repetir Lighthouse con la URL desplegada (las mediciones del cierre son en local).
-- **Módulo del mesero**: después del MVP (hoy solo existe el rol).
+- **Mesero, siguientes pasos** (estaban en el demo y quedaron fuera de este módulo): plano con la posición de cada mesa, trasladar o juntar mesas, turnos con hora de entrada y salida, ingreso por PIN y pasaporte de sellos.
+- **Propina**: definir con el contador cómo se reparte entre el personal (hoy se registra por cuenta y no cuenta como venta).
 - Pasarela de tarjetas (Wompi): fuera del MVP; el puerto `PasarelaPagos` está definido.
 - En desarrollo, `pnpm audit` reporta 2 vulnerabilidades moderadas que no llegan a producción (`esbuild` vía `drizzle-kit` y `minimatch` vía ESLint); se resuelven cuando esas herramientas actualicen sus dependencias.

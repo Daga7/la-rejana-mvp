@@ -4,9 +4,9 @@ Fecha: 4 de noviembre de 2026 · Rama `main`, sin subir a GitHub (no hice `git p
 
 ## En resumen
 
-- El MVP está **completo y funcionando en local**: las 8 fases del plan y el cierre (seguridad, auditoría de dependencias, Lighthouse, Docker). Cada fase quedó en su propio commit.
+- El MVP está **completo y funcionando en local**: las 8 fases del plan, el cierre (seguridad, auditoría de dependencias, Lighthouse, Docker) y, después, el **módulo de mesero** que pediste. Cada fase quedó en su propio commit.
 - **No está desplegado, así que no hay URL pública todavía.** Falta lo que solo tú puedes crear: el repositorio en GitHub y las cuentas de Railway (y Vercel, si quieres la web allá). Las imágenes Docker ya están construidas y probadas, y el paso a paso está en el [README](README.md#desplegar).
-- Pruebas: **130 de la API** (unitarias + integración contra PostgreSQL real) y **7 de punta a punta en el navegador**, todas en verde.
+- Pruebas: **146 de la API** (unitarias + integración contra PostgreSQL real) y **8 de punta a punta en el navegador**, todas en verde.
 - Lighthouse en celular, sobre el build de producción: **Rendimiento entre 92 y 99 y 100 en Accesibilidad, Buenas prácticas y SEO** en las siete páginas públicas. La app es instalable y funciona sin conexión.
 - `pnpm audit --prod`: **0 vulnerabilidades**.
 - Pendiente de seguridad más importante: **segundo factor (MFA) para el personal y el administrador** (ver [Riesgos](#riesgos-y-limitaciones)).
@@ -20,18 +20,18 @@ Fecha: 4 de noviembre de 2026 · Rama `main`, sin subir a GitHub (no hice `git p
 | Inventario | Recetas por producto con **descuento automático** al confirmar el pedido (en transacción y con bloqueo, así no se sobrevende), reposición si se cancela, entradas y conteos, capacidad por producto y alertas de stock bajo en vivo. |
 | Pedidos | Checkout tipo Rappi: mapa con pin, ubicación del celular, direcciones guardadas, cobertura por sede, pago en efectivo (con «paga con») o QR del restaurante. Estados recibido → en preparación → listo → en camino → entregado (y cancelado). Notificaciones push (VAPID) y seguimiento en vivo. |
 | Domiciliario | Ruta óptima (algoritmo exacto), límite de minutos configurable por sede, sugerencia de dividir en varias salidas y botones de Google Maps y Waze. Comparte su GPS en vivo **solo con el cliente de cada pedido y solo mientras va en camino**. |
-| Cocina, caja y admin | Tablero de cocina en tres columnas. Caja con asignación de domiciliario, cobro con cambio, cierre y cancelación. El admin tiene tablero de ventas por sede, inventario, menú y recetas, sedes, empleados y auditoría. |
+| Cocina, caja y admin | Tablero de cocina en tres columnas, donde cada tarjeta dice si es domicilio o mesa. Caja con asignación de domiciliario, cobro con cambio, cierre y cancelación, y una pestaña de **mesas** para cobrarlas. El admin tiene tablero de ventas por sede, inventario, menú y recetas, sedes (con sus mesas), empleados y auditoría. |
 | Buzón | Quejas y sugerencias del personal. Si son anónimas no se guarda nada que identifique a quien escribe, y la base de datos lo impide con una restricción. |
 | Asistente de WhatsApp | Para administradores autorizados: entiende texto o notas de voz, convierte el pedido en un reporte de un **catálogo cerrado** (ventas, lo más vendido, inventario; nunca SQL libre) y responde con un **PDF con la marca y gráficas**. Si no entiende, pide aclaración. Desde `/admin/asistente` se puede probar sin la cuenta de Meta. |
 | PWA | Se puede instalar, tiene íconos, splash y página sin conexión. La portada y el menú abren sin internet desde la primera visita. Hay aviso de versión nueva. |
-| Mesero | Por ahora solo existe el rol. El módulo va después del MVP, como acordamos. |
+| Mesero | Salón de su sede por zonas, con cada mesa pintada según su estado (libre, ocupada, lista para servir, pidió la cuenta). Abre la mesa con el número de personas y toma el pedido en el celular: menú por categorías, notas para la cocina y cantidades. Envía cada **ronda** a la cocina, con descuento de inventario por receta. Le llega en vivo lo que está listo (con sonido y vibración opcionales), marca «Ya lo serví», puede cancelar una ronda que la cocina aún no empieza y pide la cuenta. La **caja cobra la mesa**: puede dividir la cuenta en varios pagos (efectivo con cambio o QR) y agregar una propina voluntaria. El mesero nunca ve los domicilios ni los datos de los clientes. |
 
-Quedan fuera del MVP, como pediste: pagos con tarjeta dentro de la app (el puerto para Wompi ya está listo), pedidos desde la mesa, facturación electrónica DIAN y apps nativas.
+Quedan fuera del MVP, como pediste: pagos con tarjeta dentro de la app (el puerto para Wompi ya está listo), que el cliente pida desde la mesa (en el restaurante pide el mesero), facturación electrónica DIAN y apps nativas.
 
 ## Cómo lo verifiqué
 
-- **API**: 130 pruebas en 13 archivos. Cubren lo crítico: registro, sesiones y bloqueos; permisos por **rol y sede** (cada rol solo ve su módulo y su sede); descuento de inventario por receta; concurrencia sin sobreventa; idempotencia; privacidad del GPS; firma del webhook y anonimato del buzón.
-- **Navegador (Playwright, perfil Pixel 7)**: compra de un invitado con seguimiento en vivo, domiciliario y cliente en dos navegadores, cocina, caja, tablero del admin, buzón y asistente con descarga del PDF.
+- **API**: 146 pruebas en 15 archivos. Cubren lo crítico: registro, sesiones y bloqueos; permisos por **rol y sede** (cada rol solo ve su módulo y su sede); descuento de inventario por receta, también en las rondas de mesa; concurrencia sin sobreventa; idempotencia; privacidad del GPS; que el mesero no reciba datos de domicilios; firma del webhook y anonimato del buzón.
+- **Navegador (Playwright, perfil Pixel 7)**: compra de un invitado con seguimiento en vivo, domiciliario y cliente en dos navegadores, cocina, caja, tablero del admin, buzón, asistente con descarga del PDF y el flujo completo del mesero (abrir la mesa, ronda a la cocina, servir en vivo y cobro dividido en la caja).
 - **Lighthouse 12, celular (simulación de 4G lento y CPU 4× más lenta)**, build de producción en local:
 
 | Página | Rendimiento | Accesibilidad | Buenas prácticas | SEO | LCP | TBT |
@@ -44,7 +44,7 @@ Quedan fuera del MVP, como pediste: pagos con tarjeta dentro de la app (el puert
 | `/recuperar` | 96–97 | 100 | 100 | 100 | 2,3 s | 150–180 ms |
 | `/privacidad` | 97–99 | 100 | 100 | 100 | 2,1–2,4 s | 70–80 ms |
 
-  Son dos corridas por página; el puntaje varía unos puntos entre corridas. Al empezar el cierre, el menú estaba en 81 y la portada en 88.
+  Son dos corridas por página; el puntaje varía unos puntos entre corridas. Al empezar el cierre, el menú estaba en 81 y la portada en 88. Después de agregar el módulo de mesero lo repetí: portada 95, menú 93 e ingreso 97.
 
   Lighthouse 12 ya no tiene la categoría PWA. Por eso revisé la instalación directamente en Chromium: **sin errores de instalabilidad**, manifiesto sin errores, íconos normales y *maskable*. También apagué el servidor y comprobé que portada y menú abren desde la caché y que lo demás muestra la página «Sin señal».
 
@@ -67,13 +67,14 @@ En el cierre corregí: el truncamiento de bcrypt, el caché de respuestas de la 
 
 ## Decisiones principales
 
-Las 69 decisiones, con su porqué, están en [DECISIONES.md](DECISIONES.md). Las que más pesan:
+Las 82 decisiones, con su porqué, están en [DECISIONES.md](DECISIONES.md). Las que más pesan:
 
 1. **Hexagonal de verdad**: dominio puro, casos de uso, puertos y adaptadores. Cada integración externa tiene un adaptador real y otro de desarrollo, y la app elige según las variables de entorno (D1–D9).
 2. **Proxy del mismo origen** (`/api/*` en la web): las cookies son de primera parte aunque la web esté en Vercel y la API en Railway (D11).
 3. **CSP con nonce**: todas las páginas se renderizan en el servidor en cada visita. Prioricé la seguridad sobre el prerender (D10).
 4. **IA solo para clasificar**: Claude (`claude-opus-5-5`, configurable) convierte el mensaje en una solicitud del catálogo. Sin llave, responde un intérprete por reglas (D54–D55).
 5. **Rendimiento en celular**: menú renderizado en el servidor, Motion solo donde aporta, fuentes recortadas y service worker después de la carga (D63–D68).
+6. **Mesas sobre lo ya probado**: cada ronda es un pedido de canal «mesa» dentro de una cuenta, así que la cocina, el descuento por receta, las cancelaciones y los reportes son los mismos que en los domicilios (D70–D78).
 
 ## Lo que necesito de ti
 
@@ -104,3 +105,4 @@ En orden de prioridad (el detalle de cada variable está en [PENDIENTES.md](PEND
 - **Sin monitoreo externo** (Sentry, alertas de caída). Hay logs estructurados y auditoría, pero nadie recibe un aviso si algo falla.
 - **Costo de la IA**: el modelo por defecto es el más capaz. Si el volumen crece, `ANTHROPIC_MODEL=claude-haiku-5-5` lo abarata.
 - **Textos legales**: el aviso de privacidad es una base conforme a la Ley 1581, no reemplaza la revisión de un abogado.
+- **Mesero**: no tiene plano con la posición de cada mesa, ni trasladar o juntar mesas, ni turnos; estaban en el demo y quedaron en PENDIENTES. Falta definir con el contador cómo se reparte la propina.

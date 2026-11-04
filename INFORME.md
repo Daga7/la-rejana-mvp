@@ -65,6 +65,9 @@ Quedan fuera del MVP, como pediste: pagos con tarjeta dentro de la app (el puert
 
   Así encontré que Supavisor **ignora en silencio** el límite de 15 s por consulta que mandaba `pg` al abrir la conexión. Ahora se fija con `SET` y sí aplica.
 - **Vercel**: build en un clon limpio con Node 24, Root Directory `apps/web`, pnpm 11 por Corepack y sin `NEXT_OUTPUT`. Instala desde `apps/web` con el lockfile congelado, resuelve `@rejana/shared` y compila con el proxy de CSP.
+- **CI**: los mismos pasos del workflow (`pnpm install --frozen-lockfile`, `pnpm typecheck`, lint de la web, `pnpm test`, `pnpm build` y `pnpm audit --audit-level high --prod`) en un clon limpio dentro de un contenedor con Node 24, para no depender del Node 26 de este PC. Esa corrida destapó dos fallos que ya quedaron arreglados:
+  - `pnpm test` de la web intentaba correr las e2e con Vitest y habría tumbado el CI en GitHub;
+  - Railway rechaza las cachés de BuildKit que usaban los Dockerfiles.
 - **Memoria**: la imagen de la API contra el pooler, con 1.000 solicitudes por segundo. Sin límite usaba 209 MB en reposo y 740 MB tras la carga, sin volver a bajar. Con el heap acotado en la imagen usa 83 MB y 141 MB, con el mismo rendimiento.
 - **Lighthouse 12, celular** (simulación de 4G lento y CPU 4× más lenta), build de producción en local, después del lote y del despliegue:
 
@@ -101,7 +104,7 @@ Quedan fuera del MVP, como pediste: pagos con tarjeta dentro de la app (el puert
 
 ## Decisiones principales
 
-Las 109 decisiones, con su porqué, están en [DECISIONES.md](DECISIONES.md). Las que más pesan:
+Las 111 decisiones, con su porqué, están en [DECISIONES.md](DECISIONES.md). Las que más pesan:
 
 1. **Hexagonal de verdad**: dominio puro, casos de uso, puertos y adaptadores. Cada integración externa tiene un adaptador real y otro de desarrollo, y la app elige según las variables de entorno (D1–D9).
 2. **Proxy del mismo origen** (`/api/*` en la web): las cookies son de primera parte aunque la web esté en Vercel y la API en Railway (D11).
@@ -109,7 +112,7 @@ Las 109 decisiones, con su porqué, están en [DECISIONES.md](DECISIONES.md). La
 4. **IA solo para clasificar**: Claude (`claude-opus-5-5`, configurable) convierte el mensaje en una solicitud del catálogo. Sin llave, responde un intérprete por reglas (D54–D55).
 5. **Mesas sobre lo ya probado**: cada ronda es un pedido de canal «mesa» dentro de una cuenta, así que la cocina, el descuento por receta, los reportes y ahora mover y juntar mesas usan el mismo modelo (D70–D78, D85).
 6. **Pasaporte con la Ley 1581 desde el diseño**: consentimiento propio, código en vez de teléfono, salida con borrado y reglas contra el fraude en la base (D88–D90).
-7. **Despliegue sin consola**: pooler de Supabase en modo sesión con TLS, migraciones en el pre-deploy, datos de prueba y primer administrador por variables, y memoria acotada (D95–D109).
+7. **Despliegue sin consola**: pooler de Supabase en modo sesión con TLS, migraciones en el pre-deploy, datos de prueba y primer administrador por variables, y memoria acotada (D95–D111).
 
 ## Lo que necesito de ti
 

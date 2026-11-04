@@ -17,7 +17,7 @@
 | Cierre: seguridad, audit, Lighthouse, INFORME | ✅ Hecho | `fix(seguridad): pre-hash passwords and harden api caching`, `perf(web): reach lighthouse 90+ on public pages`, `docs: add final report and closing notes` |
 | 9. Módulo de mesero (después del MVP) | ✅ Hecha | `feat(mesero): add table service and checkout` |
 | 10. Lote 2: plano, mesas, turnos, Pasaporte y propina | ✅ Hecha | `fix(mesas): accept only a 0 or 10% tip`, `feat(turnos): add staff clock-in and admin hours`, `feat(mesas): add floor plan per zone`, `feat(mesas): move, join and split tables`, `feat(pasaporte): add opt-in stamp card and rewards`, `fix(web): refresh salon after table changes`, `test(e2e): cover moving tables, shifts and passport` |
-| 11. Despliegue: Supabase, Railway y Vercel | ✅ Listo para configurar (sin desplegar) | `feat(api): connect through supabase session pooler`, `feat(api): seed and invite first admin at startup`, `perf(api): cap node heap size in docker image`, `fix(web): show only configured oauth providers`, `chore(web): drop railway config for vercel`, `docs: document supabase, railway and vercel deploy` |
+| 11. Despliegue: Supabase, Railway y Vercel | ✅ Listo para configurar (sin desplegar) | `feat(api): connect through supabase session pooler`, `feat(api): seed and invite first admin at startup`, `perf(api): cap node heap size in docker image`, `fix(web): show only configured oauth providers`, `chore(web): drop railway config for vercel`, `fix(web): run unit tests only from src`, `fix(docker): drop buildkit cache mounts for railway`, `docs: document supabase, railway and vercel deploy`, `docs: record ci and railway build fixes` |
 
 ## Fase 1 — qué quedó
 
@@ -119,6 +119,8 @@
 - **Verificación con el pooler real de Supabase** (Supavisor 2.9.13 en Docker, modo sesión y TLS): conexión cifrada con y sin verificación (con una CA equivocada falla), URL con `sslmode=require`, migraciones de Drizzle, **la suite completa de la API (183 pruebas)**, el build de producción arrancando con el seed y el inicio de sesión del admin de prueba, la invitación del primer admin en una base vacía y que reiniciar no la repita.
 - **Memoria de la API** (imagen Docker, contra el pooler): 83 MB en reposo y 141 MB con 1.000 solicitudes por segundo; sin el límite eran 209 y 740 MB (D104).
 - **Pruebas**: 19 nuevas (conexión, variables, arranque e IP detrás del proxy de Railway). **Total: 183 de la API.**
+- **Arreglos que salieron al verificar**: los Dockerfiles ya no usan cachés de BuildKit, que Railway rechaza (D110), y `pnpm test` de la web ya no intenta correr las e2e con Vitest, algo que habría tumbado el CI (D111).
+- **CI en un clon limpio con Node 24** (contenedor `node:24-bookworm-slim`): `pnpm install --frozen-lockfile`, `pnpm typecheck`, lint de la web, `pnpm test`, `pnpm build` y `pnpm audit --audit-level high --prod`, todo en verde. E2E: 11 en verde contra el build de producción. Lighthouse móvil: entre 90 y 98 en rendimiento y 100 en lo demás, en las ocho páginas públicas.
 
 ## Siguiente paso exacto
 

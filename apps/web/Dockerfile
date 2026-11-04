@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # Web (Next.js standalone) para correrla con Docker fuera de Vercel. Construir desde la RAÍZ del repo:
 #   docker build -f apps/web/Dockerfile -t rejana-web .
 FROM node:24-bookworm-slim AS base
@@ -10,7 +9,7 @@ FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --filter @rejana/web...
+RUN pnpm install --frozen-lockfile --filter @rejana/web...
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web

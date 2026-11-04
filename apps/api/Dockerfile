@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
 # API de La Rejana Callejera. Construir desde la RAÍZ del repo:
 #   docker build -f apps/api/Dockerfile -t rejana-api .
+# Sin cachés de BuildKit (--mount=type=cache): Railway las rechaza si su id no lleva el id del servicio.
 FROM node:24-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
 RUN corepack enable
@@ -10,13 +10,13 @@ FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --filter @rejana/api...
+RUN pnpm install --frozen-lockfile --filter @rejana/api...
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN pnpm --filter @rejana/api build
 # Carpeta autónoma solo con dependencias de producción.
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --filter @rejana/api deploy --prod --legacy /salida
+RUN pnpm --filter @rejana/api deploy --prod --legacy /salida
 
 FROM node:24-bookworm-slim AS run
 # Heap acotado: sin límite, V8 crece según la RAM del servidor (medido: 209 MB en reposo y 740 MB tras una

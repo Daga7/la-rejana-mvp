@@ -368,6 +368,8 @@ export const mesas = pgTable(
     ancho: integer('ancho').notNull().default(2),
     alto: integer('alto').notNull().default(2),
     forma: text('forma', { enum: ['cuadrada', 'redonda', 'rectangular'] }).notNull().default('cuadrada'),
+    // Mesa juntada a la cuenta abierta de otra mesa (un grupo que ocupa varias mesas). Se limpia al cerrar la cuenta.
+    cuentaUnidaId: uuid('cuenta_unida_id').references((): AnyPgColumn => cuentasMesa.id, { onDelete: 'set null' }),
     creadoEn: creadoEn(),
     actualizadoEn: actualizadoEn(),
   },
@@ -393,7 +395,9 @@ export const cuentasMesa = pgTable(
       .references(() => mesas.id, { onDelete: 'restrict' }),
     meseroId: uuid('mesero_id').references(() => usuarios.id, { onDelete: 'set null' }),
     comensales: integer('comensales').notNull(),
-    estado: text('estado', { enum: ['abierta', 'cerrada', 'cancelada'] }).notNull().default('abierta'),
+    estado: text('estado', { enum: ['abierta', 'cerrada', 'cancelada', 'unida'] }).notNull().default('abierta'),
+    // Cuenta en la que se fundió esta (estado «unida»): sus rondas y pagos pasaron allá.
+    unidaA: uuid('unida_a').references((): AnyPgColumn => cuentasMesa.id, { onDelete: 'restrict' }),
     cuentaPedidaEn: ts('cuenta_pedida_en'),
     propina: integer('propina').notNull().default(0),
     estadoPago: text('estado_pago', { enum: ['pendiente', 'pagado'] }).notNull().default('pendiente'),
@@ -406,7 +410,8 @@ export const cuentasMesa = pgTable(
     // Una mesa tiene a lo sumo una cuenta abierta.
     uniqueIndex('cuentas_mesa_abierta_uq').on(t.mesaId).where(sql`${t.estado} = 'abierta'`),
     index('cuentas_mesa_sede_estado_idx').on(t.sedeId, t.estado),
-    check('cuentas_mesa_estado_ck', sql`${t.estado} in ('abierta','cerrada','cancelada')`),
+    check('cuentas_mesa_estado_ck', sql`${t.estado} in ('abierta','cerrada','cancelada','unida')`),
+    check('cuentas_mesa_unida_ck', sql`(${t.estado} = 'unida') = (${t.unidaA} is not null)`),
     check('cuentas_mesa_comensales_ck', sql`${t.comensales} between 1 and 30`),
     check('cuentas_mesa_propina_ck', sql`${t.propina} >= 0`),
     check('cuentas_mesa_cierre_ck', sql`(${t.estado} = 'abierta') = (${t.cerradaEn} is null)`),

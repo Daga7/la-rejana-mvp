@@ -58,9 +58,11 @@ export function crearCasosMesas(d: DepsMesas) {
     return rondas.map((r) => aPedidoDTO(r, items.get(r.id) ?? [], []) as PedidoMesaDTO)
   }
 
-  function resumen(c: CuentaRegistro, rondas: PedidoMesaRegistro[]): ResumenCuentaDTO {
+  function resumen(c: CuentaRegistro, rondas: PedidoMesaRegistro[], unidas: MesaRegistro[]): ResumenCuentaDTO {
     return {
       id: c.id,
+      mesaNumero: c.mesaNumero,
+      mesasUnidas: unidas.filter((m) => m.cuentaUnidaId === c.id).map((m) => m.numero),
       meseroId: c.meseroId,
       meseroNombre: c.meseroNombre,
       comensales: c.comensales,
@@ -74,10 +76,12 @@ export function crearCasosMesas(d: DepsMesas) {
   }
 
   async function cuentaDTO(repos: Repositorios, c: CuentaRegistro): Promise<CuentaMesaDTO> {
-    const [rondas, pagos] = await Promise.all([rondasDe(repos, [c.id]), repos.mesas.pagos(c.id)])
+    const [rondas, pagos, unidas] = await Promise.all([rondasDe(repos, [c.id]), repos.mesas.pagos(c.id), repos.mesas.mesasUnidas([c.id])])
     const lista = rondas.get(c.id) ?? []
     return {
       id: c.id,
+      unidaA: c.unidaA,
+      mesasUnidas: unidas.map((m) => ({ id: m.id, numero: m.numero })),
       sedeId: c.sedeId,
       mesaId: c.mesaId,
       mesaNumero: c.mesaNumero,
@@ -95,6 +99,19 @@ export function crearCasosMesas(d: DepsMesas) {
       rondas: await rondasDTO(repos, lista),
       pagos: pagos.map((p) => ({ metodo: p.metodo, monto: p.monto, recibido: p.recibido, cambio: p.cambio, referencia: p.referencia, creadoEn: p.creadoEn.toISOString() })),
     }
+  }
+
+  /** Avisa en vivo que la cuenta cambió y reenvía sus rondas activas (la cocina ve el número de mesa nuevo). */
+  async function publicarCuenta(sedeId: string, cuentaId: string) {
+    d.eventos.cuentaActualizada(sedeId, cuentaId)
+    const rondas = ((await rondasDe(uow.repos, [cuentaId])).get(cuentaId) ?? []).filter((r) => !r.cerradoEn)
+    for (const r of await rondasDTO(uow.repos, rondas)) d.eventos.pedidoActualizado(r)
+  }
+
+  /** Bloqueo mutuo entre dos operaciones simultáneas sobre las mismas mesas: se pide reintentar. */
+  function conflictoConcurrente(error: unknown): boolean {
+    const codigo = (error as { code?: string; cause?: { code?: string } }).code ?? (error as { cause?: { code?: string } }).cause?.code
+    return codigo === '40P01' || codigo === '23505'
   }
 
   /** Carga la cuenta y verifica que el actor opere en su sede. Sin permiso se responde «no existe». */
@@ -115,10 +132,13 @@ export function crearCasosMesas(d: DepsMesas) {
       const [mesas, cuentas] = await Promise.all([uow.repos.mesas.mesas(sedeId), uow.repos.mesas.cuentasAbiertas(sedeId)])
       const rondas = await rondasDe(uow.repos, cuentas.map((c) => c.id))
       const porMesa = new Map(cuentas.map((c) => [c.mesaId, c]))
+      const porId = new Map(cuentas.map((c) => [c.id, c]))
       const salida: MesaSalonDTO[] = mesas.map((m) => {
-        const c = porMesa.get(m.id) ?? null
+        // Una mesa juntada muestra la cuenta (y el estado) de su mesa principal.
+        const unida = m.cuentaUnidaId ? (porId.get(m.cuentaUnidaId) ?? null) : null
+        const c = porMesa.get(m.id) ?? unida
         const rs = c ? (rondas.get(c.id) ?? []) : []
-        return { ...aMesaDTO(m), estado: estadoDeMesa(c, rs), cuenta: c ? resumen(c, rs) : null }
+        return { ...aMesaDTO(m), estado: estadoDeMesa(c, rs), cuenta: c ? resumen(c, rs, mesas) : null, unidaA: unida ? unida.mesaNumero : null }
       })
       const listas = [...rondas.values()].flat().filter((r) => r.estado === 'listo').sort((a, b) => a.actualizadoEn.getTime() - b.actualizadoEn.getTime())
       return { sede: { id: sede.id, nombre: sede.nombre }, mesas: salida, paraServir: await rondasDTO(uow.repos, listas) }
@@ -131,6 +151,10 @@ export function crearCasosMesas(d: DepsMesas) {
       const mesa = await uow.repos.mesas.mesa(e.mesaId)
       if (!mesa || mesa.sedeId !== sedeId) throw err.noEncontrado('Esa mesa no existe en esta sede')
       if (!mesa.activa) throw err.validacion('Esa mesa está fuera de servicio')
+      if (mesa.cuentaUnidaId) {
+        const unida = await uow.repos.mesas.cuenta(mesa.cuentaUnidaId)
+        if (unida?.estado === 'abierta') return cuentaDTO(uow.repos, unida)
+      }
       let cuenta = await uow.repos.mesas.cuentaAbiertaDeMesa(mesa.id)
       if (!cuenta) {
         try {
@@ -180,11 +204,112 @@ export function crearCasosMesas(d: DepsMesas) {
         const rondas = (await rondasDe(repos, [c.id])).get(c.id) ?? []
         if (rondas.some((r) => r.estado !== 'cancelado')) throw err.validacion('La mesa tiene pedidos: para liberarla, la caja debe cobrar la cuenta')
         await repos.mesas.actualizarCuenta(c.id, { estado: 'cancelada', cerradaEn: reloj.ahora(), cerradaPor: a.id })
+        await repos.mesas.reasignarUnidas(c.id, null)
         await auditar(repos, a, 'cuenta.liberar', 'cuenta_mesa', c.id, { mesa: c.mesaNumero }, ctx.ip)
       })
       const c = (await uow.repos.mesas.cuenta(cuentaId))!
       d.eventos.cuentaActualizada(c.sedeId, c.id)
       return cuentaDTO(uow.repos, c)
+    },
+
+    /** Pasa la cuenta abierta a una mesa libre de la misma sede; las rondas, pagos y mesas juntadas la siguen. */
+    async trasladar(actor: Actor, cuentaId: string, mesaId: string, ctx: ContextoSolicitud): Promise<CuentaMesaDTO> {
+      const a = exigirPermiso(actor, 'mesas.reorganizar')
+      let sedeId = ''
+      try {
+        await uow.transaccion(async (repos) => {
+          const c = await repos.mesas.cuenta(cuentaId, { bloquear: true })
+          if (!c) throw err.noEncontrado('No encontramos esa cuenta')
+          exigirSede(a, c.sedeId)
+          if (c.estado !== 'abierta') throw err.conflicto('La cuenta de esta mesa ya se cerró')
+          await repos.mesas.bloquearMesa(mesaId)
+          const destino = await repos.mesas.mesa(mesaId)
+          if (!destino || destino.sedeId !== c.sedeId) throw err.noEncontrado('Esa mesa no existe en esta sede')
+          if (!destino.activa) throw err.validacion('Esa mesa está fuera de servicio')
+          if (destino.id === c.mesaId) throw err.validacion('La cuenta ya está en esa mesa')
+          if (destino.cuentaUnidaId === c.id) throw err.validacion(`La mesa ${destino.numero} ya es parte de esta cuenta: sepárala primero`)
+          if (destino.cuentaUnidaId || (await repos.mesas.cuentaAbiertaDeMesa(destino.id))) throw err.conflicto(`La mesa ${destino.numero} está ocupada: júntala en vez de trasladar`)
+          await repos.mesas.actualizarCuenta(c.id, { mesaId: destino.id })
+          await auditar(repos, a, 'cuenta.trasladar', 'cuenta_mesa', c.id, { de: c.mesaNumero, a: destino.numero }, ctx.ip)
+          sedeId = c.sedeId
+        })
+      } catch (error) {
+        if (conflictoConcurrente(error)) throw err.conflicto('Esa mesa se acaba de ocupar. Revisa el salón e inténtalo de nuevo.')
+        throw error
+      }
+      await publicarCuenta(sedeId, cuentaId)
+      return cuentaDTO(uow.repos, (await uow.repos.mesas.cuenta(cuentaId))!)
+    },
+
+    /**
+     * Junta una mesa a esta cuenta. Si está libre, queda ocupada por la misma cuenta (un grupo grande).
+     * Si tiene su propia cuenta abierta, esa cuenta se funde aquí: sus rondas (renumeradas después de las
+     * de esta cuenta), sus pagos, sus personas y sus mesas juntadas pasan a esta, y queda en estado «unida».
+     */
+    async juntar(actor: Actor, cuentaId: string, mesaId: string, ctx: ContextoSolicitud): Promise<CuentaMesaDTO> {
+      const a = exigirPermiso(actor, 'mesas.reorganizar')
+      let sedeId = ''
+      let fundida: string | null = null
+      try {
+        await uow.transaccion(async (repos) => {
+          const c = await repos.mesas.cuenta(cuentaId, { bloquear: true })
+          if (!c) throw err.noEncontrado('No encontramos esa cuenta')
+          exigirSede(a, c.sedeId)
+          if (c.estado !== 'abierta') throw err.conflicto('La cuenta de esta mesa ya se cerró')
+          await repos.mesas.bloquearMesa(mesaId)
+          const mesa = await repos.mesas.mesa(mesaId)
+          if (!mesa || mesa.sedeId !== c.sedeId) throw err.noEncontrado('Esa mesa no existe en esta sede')
+          if (!mesa.activa) throw err.validacion('Esa mesa está fuera de servicio')
+          if (mesa.id === c.mesaId || mesa.cuentaUnidaId === c.id) throw err.validacion(`La mesa ${mesa.numero} ya es parte de esta cuenta`)
+          if (mesa.cuentaUnidaId) {
+            const principal = await repos.mesas.cuenta(mesa.cuentaUnidaId)
+            throw err.conflicto(`La mesa ${mesa.numero} ya está junta con la mesa ${principal?.mesaNumero ?? '?'}: junta esa mesa`)
+          }
+          let rondasMovidas = 0
+          let pagosMovidos = 0
+          const abierta = await repos.mesas.cuentaAbiertaDeMesa(mesa.id)
+          if (abierta) {
+            const otra = await repos.mesas.cuenta(abierta.id, { bloquear: true })
+            if (!otra || otra.estado !== 'abierta') throw err.conflicto('La cuenta de esa mesa acaba de cambiar. Inténtalo de nuevo.')
+            const desplazamiento = (await repos.mesas.siguienteRonda(c.id)) - 1
+            rondasMovidas = await repos.mesas.moverRondas(otra.id, c.id, desplazamiento)
+            pagosMovidos = await repos.mesas.moverPagos(otra.id, c.id)
+            await repos.mesas.reasignarUnidas(otra.id, c.id)
+            await repos.mesas.actualizarCuenta(otra.id, { estado: 'unida', unidaA: c.id, cerradaEn: reloj.ahora(), cerradaPor: a.id })
+            await repos.mesas.actualizarCuenta(c.id, { comensales: Math.min(30, c.comensales + otra.comensales) })
+            fundida = otra.id
+          }
+          await repos.mesas.unirMesa(mesa.id, c.id)
+          await auditar(repos, a, 'cuenta.juntar', 'cuenta_mesa', c.id, { mesaPrincipal: c.mesaNumero, mesaJuntada: mesa.numero, cuentaFundida: fundida, rondasMovidas, pagosMovidos }, ctx.ip)
+          sedeId = c.sedeId
+        })
+      } catch (error) {
+        if (conflictoConcurrente(error)) throw err.conflicto('Otra persona estaba moviendo esas mesas. Revisa el salón e inténtalo de nuevo.')
+        throw error
+      }
+      if (fundida) d.eventos.cuentaActualizada(sedeId, fundida)
+      await publicarCuenta(sedeId, cuentaId)
+      return cuentaDTO(uow.repos, (await uow.repos.mesas.cuenta(cuentaId))!)
+    },
+
+    /** Separa una mesa juntada: queda libre y las rondas siguen en la cuenta. */
+    async separar(actor: Actor, cuentaId: string, mesaId: string, ctx: ContextoSolicitud): Promise<CuentaMesaDTO> {
+      const a = exigirPermiso(actor, 'mesas.reorganizar')
+      let sedeId = ''
+      await uow.transaccion(async (repos) => {
+        const c = await repos.mesas.cuenta(cuentaId, { bloquear: true })
+        if (!c) throw err.noEncontrado('No encontramos esa cuenta')
+        exigirSede(a, c.sedeId)
+        if (c.estado !== 'abierta') throw err.conflicto('La cuenta de esta mesa ya se cerró')
+        await repos.mesas.bloquearMesa(mesaId)
+        const mesa = await repos.mesas.mesa(mesaId)
+        if (!mesa || mesa.cuentaUnidaId !== c.id) throw err.validacion('Esa mesa no está junta con esta cuenta')
+        await repos.mesas.unirMesa(mesa.id, null)
+        await auditar(repos, a, 'cuenta.separar', 'cuenta_mesa', c.id, { mesaPrincipal: c.mesaNumero, mesaSeparada: mesa.numero }, ctx.ip)
+        sedeId = c.sedeId
+      })
+      d.eventos.cuentaActualizada(sedeId, cuentaId)
+      return cuentaDTO(uow.repos, (await uow.repos.mesas.cuenta(cuentaId))!)
     },
 
     /**
@@ -211,6 +336,7 @@ export function crearCasosMesas(d: DepsMesas) {
           await repos.mesas.registrarPago({ cuentaId: c.id, metodo: p.metodo, monto: p.monto, recibido: p.recibido, cambio: p.cambio, referencia: p.referencia ?? null, registradoPor: a.id })
         }
         await repos.mesas.actualizarCuenta(c.id, { estado: 'cerrada', estadoPago: 'pagado', propina: e.propina, cerradaEn: ahora, cerradaPor: a.id })
+        await repos.mesas.reasignarUnidas(c.id, null)
         for (const r of rondas) {
           await repos.pedidos.actualizar(r.id, { ...(r.estado === 'cancelado' ? {} : { estadoPago: 'pagado' }), cerradoEn: ahora, cerradoPor: a.id })
           rondasCerradas.push(r)
@@ -263,7 +389,7 @@ export function crearCasosMesas(d: DepsMesas) {
       const a = exigirPermiso(actor, 'mesas.gestionar')
       const m = await uow.repos.mesas.mesa(id)
       if (!m) throw err.noEncontrado('Esa mesa no existe')
-      if (!e.activa && m.activa && (await uow.repos.mesas.cuentaAbiertaDeMesa(id))) {
+      if (!e.activa && m.activa && ((await uow.repos.mesas.cuentaAbiertaDeMesa(id)) || m.cuentaUnidaId)) {
         throw err.validacion('La mesa tiene una cuenta abierta: cóbrala o libérala antes de sacarla de servicio')
       }
       const zona = e.zona?.trim() || null

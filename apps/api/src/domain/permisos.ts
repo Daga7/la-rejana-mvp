@@ -30,6 +30,7 @@ export type Permiso =
   | 'mesas.atender'
   | 'mesas.servir'
   | 'mesas.gestionar'
+  | 'mesas.reorganizar'
   | 'turnos.marcar'
   | 'turnos.gestionar'
   | 'cliente.pedir'
@@ -37,9 +38,9 @@ export type Permiso =
 const PERMISOS_POR_ROL: Record<Rol, ReadonlySet<Permiso>> = {
   cliente: new Set(['cliente.pedir']),
   // El mesero solo ve el salón de su sede: nunca los domicilios ni los datos de sus clientes.
-  mesero: new Set(['buzon.enviar', 'turnos.marcar', 'mesas.ver', 'mesas.atender', 'mesas.servir']),
+  mesero: new Set(['buzon.enviar', 'turnos.marcar', 'mesas.ver', 'mesas.atender', 'mesas.servir', 'mesas.reorganizar']),
   cocina: new Set(['buzon.enviar', 'turnos.marcar', 'pedidos.ver_sede', 'pedidos.cocinar', 'inventario.ver']),
-  caja: new Set(['buzon.enviar', 'turnos.marcar', 'pedidos.ver_sede', 'pedidos.despachar', 'pedidos.cobrar', 'pedidos.cancelar', 'pedidos.entregar', 'inventario.ver', 'mesas.ver']),
+  caja: new Set(['buzon.enviar', 'turnos.marcar', 'pedidos.ver_sede', 'pedidos.despachar', 'pedidos.cobrar', 'pedidos.cancelar', 'pedidos.entregar', 'inventario.ver', 'mesas.ver', 'mesas.reorganizar']),
   domiciliario: new Set(['buzon.enviar', 'turnos.marcar', 'domicilios.recorrer', 'pedidos.entregar']),
   admin: new Set([
     'sedes.gestionar',
@@ -61,6 +62,7 @@ const PERMISOS_POR_ROL: Record<Rol, ReadonlySet<Permiso>> = {
     'mesas.atender',
     'mesas.servir',
     'mesas.gestionar',
+    'mesas.reorganizar',
     'turnos.gestionar',
   ]),
 }

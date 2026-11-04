@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { CuentaRegistro, MesaRegistro, RepoMesas } from '../../../ports/repositorios'
 import type { Ejecutor } from '../cliente'
@@ -18,6 +18,7 @@ const aMesa = (m: typeof mesas.$inferSelect): MesaRegistro => ({
   ancho: m.ancho,
   alto: m.alto,
   forma: m.forma,
+  cuentaUnidaId: m.cuentaUnidaId,
 })
 
 /** Del registro a las columnas (posX/posY en la base). */
@@ -41,6 +42,7 @@ const aCuenta = ({ c, mesaNumero, zona, meseroNombre }: { c: typeof cuentasMesa.
   meseroNombre,
   comensales: c.comensales,
   estado: c.estado,
+  unidaA: c.unidaA,
   cuentaPedidaEn: c.cuentaPedidaEn,
   propina: c.propina,
   estadoPago: c.estadoPago,
@@ -106,6 +108,32 @@ export function repoMesas(db: Ejecutor): RepoMesas {
         .update(cuentasMesa)
         .set({ ...cambios, actualizadoEn: new Date() })
         .where(eq(cuentasMesa.id, id))
+    },
+    async bloquearMesa(id) {
+      await db.select({ id: mesas.id }).from(mesas).where(eq(mesas.id, id)).for('update')
+    },
+    async unirMesa(mesaId, cuentaId) {
+      await db.update(mesas).set({ cuentaUnidaId: cuentaId, actualizadoEn: new Date() }).where(eq(mesas.id, mesaId))
+    },
+    async mesasUnidas(cuentaIds) {
+      if (cuentaIds.length === 0) return []
+      const filas = await db.select().from(mesas).where(inArray(mesas.cuentaUnidaId, cuentaIds)).orderBy(asc(mesas.numero))
+      return filas.map(aMesa)
+    },
+    async reasignarUnidas(desde, hacia) {
+      await db.update(mesas).set({ cuentaUnidaId: hacia, actualizadoEn: new Date() }).where(eq(mesas.cuentaUnidaId, desde))
+    },
+    async moverRondas(desde, hacia, desplazamiento) {
+      const filas = await db
+        .update(pedidos)
+        .set({ cuentaId: hacia, ronda: sql`${pedidos.ronda} + ${desplazamiento}`, actualizadoEn: new Date() })
+        .where(eq(pedidos.cuentaId, desde))
+        .returning({ id: pedidos.id })
+      return filas.length
+    },
+    async moverPagos(desde, hacia) {
+      const filas = await db.update(pagos).set({ cuentaId: hacia }).where(eq(pagos.cuentaId, desde)).returning({ id: pagos.id })
+      return filas.length
     },
     async siguienteRonda(cuentaId) {
       const [r] = await db

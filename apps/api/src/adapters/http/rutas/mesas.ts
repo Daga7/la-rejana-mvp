@@ -1,4 +1,4 @@
-import { abrirCuentaSchema, actualizarCuentaSchema, cobrarCuentaSchema, id, mesaSchema, rondaSchema } from '@rejana/shared'
+import { abrirCuentaSchema, actualizarCuentaSchema, cobrarCuentaSchema, id, mesaDestinoSchema, mesaSchema, rondaSchema } from '@rejana/shared'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { Contenedor } from '../../../contenedor'
@@ -40,6 +40,14 @@ export function rutasMesas(app: FastifyInstance, c: Contenedor) {
   app.post('/api/cuentas/:id/liberar', { config: limite(30, '1 minute') }, async (req) => ({
     cuenta: await mesas.liberar(await actor(req), conId.parse(req.params).id, ctx(req)),
   }))
+
+  // Trasladar la cuenta a otra mesa, juntarle una mesa (o la cuenta de otra mesa) y separar una mesa juntada.
+  for (const accion of ['trasladar', 'juntar', 'separar'] as const) {
+    app.post(`/api/cuentas/:id/${accion}`, { config: limite(30, '1 minute') }, async (req) => {
+      const { mesaId } = mesaDestinoSchema.parse(req.body)
+      return { cuenta: await mesas[accion](await actor(req), conId.parse(req.params).id, mesaId, ctx(req)) }
+    })
+  }
 
   app.post('/api/cuentas/:id/cobrar', { config: limite(30, '1 minute') }, async (req) => {
     const datos = cobrarCuentaSchema.parse(req.body)

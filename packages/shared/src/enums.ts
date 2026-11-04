@@ -63,8 +63,8 @@ export const NOMBRE_FORMA_MESA: Record<FormaMesa, string> = { cuadrada: 'Cuadrad
 /** El plano de cada zona es una cuadrícula de hasta 24 × 24 casillas. */
 export const PLANO_MAX = 24
 
-/** Cuenta de una mesa: agrupa las rondas que el mesero envía a la cocina hasta que se cobra. */
-export const ESTADOS_CUENTA = ['abierta', 'cerrada', 'cancelada'] as const
+/** Cuenta de una mesa: agrupa las rondas que el mesero envía a la cocina hasta que se cobra. «unida»: se fundió en otra cuenta. */
+export const ESTADOS_CUENTA = ['abierta', 'cerrada', 'cancelada', 'unida'] as const
 export type EstadoCuenta = (typeof ESTADOS_CUENTA)[number]
 
 /** Cómo se ve una mesa en el salón. */

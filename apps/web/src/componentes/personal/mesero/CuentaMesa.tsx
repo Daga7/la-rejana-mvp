@@ -1,12 +1,13 @@
 'use client'
 
-import { cop, hora, minutosDesde, type CuentaMesaDTO, type MenuDTO, type PedidoDTO, type PedidoMesaDTO, type ProductoMenuDTO } from '@rejana/shared'
-import { ArrowLeft, Check, MessageSquarePlus, ReceiptText, Send, Trash2, XCircle } from 'lucide-react'
+import { cop, hora, minutosDesde, type CuentaMesaDTO, type MenuDTO, type MesaSalonDTO, type PedidoDTO, type PedidoMesaDTO, type ProductoMenuDTO, type SalonDTO } from '@rejana/shared'
+import { ArrowLeft, ArrowRightLeft, Check, Combine, MessageSquarePlus, ReceiptText, Send, Split, Trash2, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { avisar } from '@/componentes/Avisos'
+import { Hoja } from '@/componentes/Hoja'
 import { api, ErrorApi, obtener } from '@/lib/api'
 import { useTiempoReal } from '@/lib/tiempo-real'
 import { useTic } from '../comunes'
@@ -26,6 +27,7 @@ export function CuentaMesa({ id }: { id: string }) {
   const { agregar, cambiar, quitar, limpiar } = useBorradores()
   const [vista, setVista] = useState<'menu' | 'cuenta'>('menu')
   const [ocupado, setOcupado] = useState<string | null>(null)
+  const [moviendo, setMoviendo] = useState(false)
   useTic()
 
   useTiempoReal(
@@ -101,12 +103,20 @@ export function CuentaMesa({ id }: { id: string }) {
           <ArrowLeft size={18} aria-hidden />
         </Link>
         <div className="mr-auto min-w-0">
-          <h1 className="titulo text-3xl">Mesa {cuenta.mesaNumero}</h1>
+          <h1 className="titulo text-3xl">
+            Mesa {cuenta.mesaNumero}
+            {cuenta.mesasUnidas.length > 0 && <span className="text-xl"> + {cuenta.mesasUnidas.map((m) => m.numero).join(', ')}</span>}
+          </h1>
           <p className="text-xs text-noche-300">
             {cuenta.zona ? `${cuenta.zona} · ` : ''}
             {cuenta.meseroNombre ? `Atiende ${cuenta.meseroNombre} · ` : ''}abierta a las {hora(cuenta.abiertaEn)} ({minutosDesde(cuenta.abiertaEn)} min)
           </p>
         </div>
+        {abierta && (
+          <button className="btn btn-blanco btn-sm" onClick={() => setMoviendo(true)} aria-haspopup="dialog">
+            <ArrowRightLeft size={16} aria-hidden /> Mover o juntar
+          </button>
+        )}
         {abierta && (
           <div className="flex items-center gap-2 text-sm">
             <span className="text-noche-300">Personas</span>
@@ -115,7 +125,15 @@ export function CuentaMesa({ id }: { id: string }) {
         )}
       </div>
 
-      {!abierta ? (
+      {cuenta.estado === 'unida' && cuenta.unidaA ? (
+        <div className="sticker mx-auto grid max-w-md gap-3 p-6 text-center text-tinta">
+          <p className="text-lg font-black">Esta cuenta se juntó con la de otra mesa</p>
+          <p className="text-sm text-tinta-soft">Sus rondas y personas pasaron a la cuenta del grupo; allá se sigue pidiendo y se cobra todo junto.</p>
+          <Link href={`/mesero/cuenta/${cuenta.unidaA}`} className="btn btn-rosa">
+            Ir a la cuenta del grupo
+          </Link>
+        </div>
+      ) : !abierta ? (
         <div className="sticker mx-auto grid max-w-md gap-3 p-6 text-center text-tinta">
           <p className="text-lg font-black">{cuenta.estado === 'cerrada' ? `Cuenta cobrada: ${cop(cuenta.subtotal + cuenta.propina)}` : 'La mesa se liberó sin consumo'}</p>
           <p className="text-sm text-tinta-soft">La mesa {cuenta.mesaNumero} ya está libre para nuevos clientes.</p>
@@ -228,6 +246,19 @@ export function CuentaMesa({ id }: { id: string }) {
             </section>
           </div>
 
+          <Hoja abierta={moviendo} onCerrar={() => setMoviendo(false)} titulo={`Mover o juntar la mesa ${cuenta.mesaNumero}`} ancho="max-w-lg">
+            {moviendo && (
+              <MoverMesa
+                cuenta={cuenta}
+                onHecho={async (texto) => {
+                  setMoviendo(false)
+                  avisar(texto)
+                  await mutate()
+                }}
+              />
+            )}
+          </Hoja>
+
           {lineas.length > 0 && vista === 'menu' && (
             <button className="btn btn-rosa btn-lg aparecer fixed inset-x-4 bottom-4 z-20 justify-between lg:hidden" onClick={() => setVista('cuenta')}>
               <span>
@@ -337,3 +368,96 @@ function Ronda({ ronda, ocupado, onServir, onCancelar }: { ronda: PedidoMesaDTO;
     </div>
   )
 }
+
+/** Trasladar la cuenta a una mesa libre, juntarle otra mesa (o la cuenta de otra mesa) o separar una juntada. */
+function MoverMesa({ cuenta, onHecho }: { cuenta: CuentaMesaDTO; onHecho: (texto: string) => void }) {
+  const { data } = useSWR<{ salon: SalonDTO }>(`/mesas/${cuenta.sedeId}/salon`, obtener)
+  const [enviando, setEnviando] = useState(false)
+  const mesas = data?.salon.mesas ?? []
+  const propias = new Set([cuenta.mesaId, ...cuenta.mesasUnidas.map((m) => m.id)])
+  const libres = mesas.filter((m) => !m.cuenta && !propias.has(m.id))
+  const otras = mesas.filter((m) => !propias.has(m.id) && m.unidaA === null)
+
+  async function hacer(accion: 'trasladar' | 'juntar' | 'separar', m: MesaSalonDTO | { id: string; numero: number }, texto: string) {
+    setEnviando(true)
+    try {
+      await api(`/cuentas/${cuenta.id}/${accion}`, { metodo: 'POST', cuerpo: { mesaId: m.id } })
+      onHecho(texto)
+    } catch (e) {
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo mover la mesa', 'error')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  if (!data) return <div className="esqueleto h-48" />
+  const boton = 'grid min-h-14 place-items-center rounded-xl border-2 border-tinta px-2 py-1 text-center font-black disabled:opacity-50'
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-2" aria-labelledby="t-trasladar">
+        <h3 id="t-trasladar" className="flex items-center gap-2 font-black">
+          <ArrowRightLeft size={18} aria-hidden /> Trasladar a una mesa libre
+        </h3>
+        <p className="text-xs text-tinta-soft">La cuenta, sus rondas y lo que está en la cocina se van con ella.</p>
+        {libres.length === 0 ? (
+          <p className="text-sm text-tinta-soft">No hay mesas libres.</p>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
+            {libres.map((m) => (
+              <button key={m.id} className={`${boton} bg-white`} disabled={enviando} onClick={() => void hacer('trasladar', m, `La cuenta pasó a la mesa ${m.numero}`)}>
+                <span>
+                  <span className="sr-only">Trasladar a la mesa </span>
+                  {m.numero}
+                </span>
+                <span className="text-[10px] font-bold text-tinta-soft">{m.zona ?? ''}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="grid gap-2" aria-labelledby="t-juntar">
+        <h3 id="t-juntar" className="flex items-center gap-2 font-black">
+          <Combine size={18} aria-hidden /> Juntar con otra mesa
+        </h3>
+        <p className="text-xs text-tinta-soft">Una mesa libre queda ocupada por este grupo. Si la otra mesa tiene cuenta, sus rondas y personas se suman a esta y se cobra todo junto.</p>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
+          {otras.map((m) => (
+            <button
+              key={m.id}
+              className={`${boton} ${m.cuenta ? 'bg-turquesa' : 'bg-white'}`}
+              disabled={enviando}
+              onClick={() => {
+                if (m.cuenta && !window.confirm(`La cuenta de la mesa ${m.numero} (${cop(m.cuenta.subtotal)}) se sumará a esta. ¿Juntarlas?`)) return
+                void hacer('juntar', m, m.cuenta ? `La cuenta de la mesa ${m.numero} se juntó con esta` : `La mesa ${m.numero} quedó junta con esta`)
+              }}
+            >
+              <span>
+                <span className="sr-only">Juntar la mesa </span>
+                {m.numero}
+              </span>
+              <span className="text-[10px] font-bold">{m.cuenta ? cop(m.cuenta.subtotal) : 'Libre'}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {cuenta.mesasUnidas.length > 0 && (
+        <section className="grid gap-2" aria-labelledby="t-separar">
+          <h3 id="t-separar" className="flex items-center gap-2 font-black">
+            <Split size={18} aria-hidden /> Mesas juntadas
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {cuenta.mesasUnidas.map((m) => (
+              <button key={m.id} className="btn btn-blanco btn-sm" disabled={enviando} onClick={() => void hacer('separar', m, `La mesa ${m.numero} quedó libre`)}>
+                Separar la mesa {m.numero}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-tinta-soft">Al separarla, lo pedido sigue en esta cuenta.</p>
+        </section>
+      )}
+    </div>
+  )
+}
+

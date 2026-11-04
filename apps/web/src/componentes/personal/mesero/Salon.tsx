@@ -72,7 +72,7 @@ export function Salon() {
   const zonaActual = zona && zonas.has(zona) ? zona : ([...zonas.keys()][0] ?? null)
   const mesasZona = zonaActual ? (zonas.get(zonaActual) ?? []) : []
   const tocarMesa = (m: MesaSalonDTO) => (m.cuenta ? router.push(`/mesero/cuenta/${m.cuenta.id}`) : setAbrir(m))
-  const misMesas = (salon?.mesas ?? []).filter((m) => m.cuenta && m.cuenta.meseroId === usuario?.id)
+  const misMesas = (salon?.mesas ?? []).filter((m) => m.cuenta && m.unidaA === null && m.cuenta.meseroId === usuario?.id)
 
   return (
     <div className="grid gap-4">
@@ -188,10 +188,10 @@ export function Salon() {
                           <span className="sr-only">Mesa </span>
                           {m.numero}
                         </span>
-                        <span className="mt-0.5 text-[10px] font-bold opacity-90 sm:text-xs">{m.cuenta ? `$${Math.round(m.cuenta.subtotal / 1000)}k` : 'Libre'}</span>
+                        <span className="mt-0.5 text-[10px] font-bold opacity-90 sm:text-xs">{m.unidaA ? `con la ${m.unidaA}` : m.cuenta ? `$${Math.round(m.cuenta.subtotal / 1000)}k` : 'Libre'}</span>
                       </>
                     )}
-                    etiquetaMesa={(m) => `, ${m.cuenta ? `${NOMBRE_ESTADO_MESA[m.estado]}, ${m.cuenta.comensales} personas` : `${m.puestos} puestos`}`}
+                    etiquetaMesa={(m) => `, ${m.unidaA ? `junta con la mesa ${m.unidaA}, ` : ''}${m.cuenta ? `${NOMBRE_ESTADO_MESA[m.estado]}, ${m.cuenta.comensales} personas` : `${m.puestos} puestos`}`}
                   />
                 </div>
               ) : (
@@ -208,7 +208,9 @@ export function Salon() {
                           <span className="sr-only">{m.cuenta ? ' personas' : ' puestos'}</span>
                         </span>
                       </span>
-                      {m.cuenta ? (
+                      {m.unidaA ? (
+                        <span className="text-xs font-bold leading-tight">Junta con la mesa {m.unidaA}</span>
+                      ) : m.cuenta ? (
                         <span className="text-xs font-bold leading-tight">
                           <span className="sr-only">{NOMBRE_ESTADO_MESA[m.estado]}: </span>
                           <span className="block tabular-nums">{cop(m.cuenta.subtotal)}</span>

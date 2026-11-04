@@ -192,6 +192,9 @@ export const rondaSchema = z
   .refine((r) => sinRepetidos(r.items), { message: 'Hay productos repetidos en la ronda', path: ['items'] })
 export type RondaInput = z.infer<typeof rondaSchema>
 
+/** Trasladar la cuenta a otra mesa, juntarle una mesa o separar una mesa unida. */
+export const mesaDestinoSchema = z.object({ mesaId: id })
+
 export const pagoCuentaSchema = z.object({
   metodo: z.enum(METODOS_PAGO),
   monto: pesos.min(1, 'El monto debe ser mayor que cero'),

@@ -275,6 +275,10 @@ export interface CuentaMesaDTO {
   meseroNombre: string | null
   comensales: number
   estado: EstadoCuenta
+  /** Si la cuenta se fundió en otra (estado «unida»), el id de esa cuenta. */
+  unidaA: string | null
+  /** Mesas adicionales que ocupa la cuenta (mesas juntadas). */
+  mesasUnidas: { id: string; numero: number }[]
   /** Cuándo la mesa pidió la cuenta (null si siguen pidiendo). */
   cuentaPedidaEn: string | null
   abiertaEn: string
@@ -301,11 +305,16 @@ export interface ResumenCuentaDTO {
   paraServir: number
   /** Rondas que no se cancelaron. */
   rondas: number
+  /** Número de la mesa principal de la cuenta y de las mesas juntadas. */
+  mesaNumero: number
+  mesasUnidas: number[]
 }
 
 export interface MesaSalonDTO extends MesaDTO {
   estado: EstadoMesa
   cuenta: ResumenCuentaDTO | null
+  /** Si esta mesa está juntada a la cuenta de otra, el número de esa mesa principal. */
+  unidaA: number | null
 }
 
 export interface SalonDTO {

@@ -24,7 +24,7 @@ export function ModuloCocina() {
   const [pendientes, setPendientes] = useState<Record<string, EstadoPedido>>({})
   const vistos = useRef<Set<string> | null>(null)
 
-  const { conectado } = useTiempoReal({ activo: !!sedeId }, { 'pedido:actualizado': () => void mutate() })
+  const { conectado } = useTiempoReal({ activo: !!sedeId }, { 'pedido:actualizado': () => void mutate(), 'cuenta:actualizada': () => void mutate() })
 
   // Campana cuando aparece un pedido que no se había visto.
   useEffect(() => {

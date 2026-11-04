@@ -521,6 +521,8 @@ export interface MesaRegistro {
   ancho: number
   alto: number
   forma: FormaMesa
+  /** Cuenta abierta a la que está juntada esta mesa (o null). */
+  cuentaUnidaId: string | null
 }
 
 export interface CuentaRegistro {
@@ -533,6 +535,7 @@ export interface CuentaRegistro {
   meseroNombre: string | null
   comensales: number
   estado: EstadoCuenta
+  unidaA: string | null
   cuentaPedidaEn: Date | null
   propina: number
   estadoPago: EstadoPago
@@ -544,8 +547,8 @@ export interface CuentaRegistro {
 export interface RepoMesas {
   mesas(sedeId: string, opciones?: { incluirInactivas?: boolean }): Promise<MesaRegistro[]>
   mesa(id: string): Promise<MesaRegistro | null>
-  crearMesa(datos: Omit<MesaRegistro, 'id'>): Promise<MesaRegistro>
-  actualizarMesa(id: string, cambios: Partial<Omit<MesaRegistro, 'id' | 'sedeId'>>): Promise<void>
+  crearMesa(datos: Omit<MesaRegistro, 'id' | 'cuentaUnidaId'>): Promise<MesaRegistro>
+  actualizarMesa(id: string, cambios: Partial<Omit<MesaRegistro, 'id' | 'sedeId' | 'cuentaUnidaId'>>): Promise<void>
   cuentasAbiertas(sedeId: string): Promise<CuentaRegistro[]>
   /** `bloquear`: bloquea la fila hasta el fin de la transacción (rondas y cobros concurrentes). */
   cuenta(id: string, opciones?: { bloquear?: boolean }): Promise<CuentaRegistro | null>
@@ -554,8 +557,20 @@ export interface RepoMesas {
   abrirCuenta(datos: { sedeId: string; mesaId: string; meseroId: string | null; comensales: number }): Promise<CuentaRegistro>
   actualizarCuenta(
     id: string,
-    cambios: Partial<Pick<CuentaRegistro, 'comensales' | 'cuentaPedidaEn' | 'estado' | 'propina' | 'estadoPago' | 'cerradaEn'> & { cerradaPor: string | null }>,
+    cambios: Partial<Pick<CuentaRegistro, 'comensales' | 'cuentaPedidaEn' | 'estado' | 'propina' | 'estadoPago' | 'cerradaEn' | 'mesaId' | 'unidaA'> & { cerradaPor: string | null }>,
   ): Promise<void>
+  /** Bloquea la fila de la mesa hasta el fin de la transacción (trasladar y juntar). */
+  bloquearMesa(id: string): Promise<void>
+  /** Junta la mesa a una cuenta abierta (o la separa con null). */
+  unirMesa(mesaId: string, cuentaId: string | null): Promise<void>
+  /** Mesas juntadas a cualquiera de esas cuentas. */
+  mesasUnidas(cuentaIds: string[]): Promise<MesaRegistro[]>
+  /** Pasa las mesas juntadas de una cuenta a otra (o las separa todas con null). */
+  reasignarUnidas(desdeCuentaId: string, haciaCuentaId: string | null): Promise<void>
+  /** Pasa las rondas de una cuenta a otra, sumando `desplazamiento` a su número. Devuelve cuántas movió. */
+  moverRondas(desdeCuentaId: string, haciaCuentaId: string, desplazamiento: number): Promise<number>
+  /** Pasa los pagos de una cuenta a otra. Devuelve cuántos movió. */
+  moverPagos(desdeCuentaId: string, haciaCuentaId: string): Promise<number>
   /** Número de la próxima ronda (llamar con la cuenta bloqueada). */
   siguienteRonda(cuentaId: string): Promise<number>
   pagos(cuentaId: string): Promise<PagoRegistro[]>

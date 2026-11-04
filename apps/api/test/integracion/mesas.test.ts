@@ -305,6 +305,93 @@ describe('mesas: plano del salón', () => {
   })
 })
 
+describe('mesas: trasladar, juntar y separar', () => {
+  let cocinaN: Navegador
+  let cajaN: Navegador
+  const mesaN = (n: number) => mesaId(ids.normandia, n)
+  const salonN = async () => (await admin.get(`/api/mesas/${ids.normandia}/salon`)).json<{ salon: SalonDTO }>().salon
+  async function servirN(pedidoId: string) {
+    for (const [estado, nav] of [['en_preparacion', cocinaN], ['listo', cocinaN], ['entregado', admin]] as const) {
+      expect((await nav.patch(`/api/pedidos/${pedidoId}/estado`, { estado })).statusCode).toBe(200)
+    }
+  }
+
+  beforeAll(async () => {
+    cocinaN = new Navegador(e.app)
+    await cocinaN.ingresar('cocina.normandia@larejana.test')
+    cajaN = new Navegador(e.app)
+    await cajaN.ingresar('caja.normandia@larejana.test')
+  })
+
+  it('traslada la cuenta con sus rondas a una mesa libre, pero no a una ocupada', async () => {
+    const c = await abrir(2, 2, admin, ids.normandia)
+    const { pedido } = await ronda(c.id, [{ slug: 'la-rejana', cantidad: 1 }], {}, admin)
+    const r = await admin.post(`/api/cuentas/${c.id}/trasladar`, { mesaId: await mesaN(3) })
+    expect(r.statusCode).toBe(200)
+    expect(r.json<{ cuenta: CuentaMesaDTO }>().cuenta).toMatchObject({ id: c.id, mesaNumero: 3, estado: 'abierta' })
+    const salon = await salonN()
+    expect(salon.mesas.find((m) => m.numero === 2)).toMatchObject({ estado: 'libre', cuenta: null })
+    expect(salon.mesas.find((m) => m.numero === 3)!.cuenta!.id).toBe(c.id)
+    // La cocina ve la ronda con el número de mesa nuevo
+    expect((await cocinaN.get(`/api/pedidos/${pedido!.id}`)).json<{ pedido: PedidoMesaDTO }>().pedido.mesa.numero).toBe(3)
+
+    await abrir(4, 2, admin, ids.normandia)
+    expect((await admin.post(`/api/cuentas/${c.id}/trasladar`, { mesaId: await mesaN(4) })).statusCode).toBe(409)
+    // Permisos: la cocina no reorganiza; el mesero de otra sede tampoco
+    expect((await cocinaN.post(`/api/cuentas/${c.id}/trasladar`, { mesaId: await mesaN(5) })).statusCode).toBe(403)
+    expect((await mesero.post(`/api/cuentas/${c.id}/trasladar`, { mesaId: await mesaN(5) })).statusCode).toBe(403)
+    const auditoria = await e.c.uow.repos.auditoria.listar({ limite: 30 })
+    expect(auditoria.some((x) => x.accion === 'cuenta.trasladar' && x.entidadId === c.id)).toBe(true)
+  })
+
+  it('junta una mesa libre a la cuenta (grupo grande) y luego la separa', async () => {
+    const c = (await salonN()).mesas.find((m) => m.numero === 3)!.cuenta!
+    const r = await admin.post(`/api/cuentas/${c.id}/juntar`, { mesaId: await mesaN(5) })
+    expect(r.statusCode).toBe(200)
+    expect(r.json<{ cuenta: CuentaMesaDTO }>().cuenta.mesasUnidas.map((m) => m.numero)).toEqual([5])
+    let salon = await salonN()
+    expect(salon.mesas.find((m) => m.numero === 5)).toMatchObject({ unidaA: 3, estado: salon.mesas.find((m) => m.numero === 3)!.estado })
+    expect(salon.mesas.find((m) => m.numero === 5)!.cuenta!.id).toBe(c.id)
+    expect(salon.mesas.find((m) => m.numero === 3)!.cuenta!.mesasUnidas).toEqual([5])
+    // Abrir una mesa juntada lleva a la cuenta del grupo
+    expect((await abrir(5, 2, admin, ids.normandia)).id).toBe(c.id)
+    // No se puede trasladar a una mesa que ya es del grupo
+    expect((await admin.post(`/api/cuentas/${c.id}/trasladar`, { mesaId: await mesaN(5) })).statusCode).toBe(422)
+
+    expect((await admin.post(`/api/cuentas/${c.id}/separar`, { mesaId: await mesaN(5) })).statusCode).toBe(200)
+    salon = await salonN()
+    expect(salon.mesas.find((m) => m.numero === 5)).toMatchObject({ estado: 'libre', unidaA: null })
+    expect((await admin.post(`/api/cuentas/${c.id}/separar`, { mesaId: await mesaN(5) })).statusCode).toBe(422)
+  })
+
+  it('junta la cuenta de otra mesa: rondas renumeradas, personas sumadas y un solo cobro que libera ambas mesas', async () => {
+    const a = (await salonN()).mesas.find((m) => m.numero === 3)!.cuenta!
+    const b = (await salonN()).mesas.find((m) => m.numero === 4)!.cuenta!
+    const { pedido: b1 } = await ronda(b.id, [{ slug: 'la-callejera', cantidad: 1 }], {}, admin)
+    const { pedido: b2 } = await ronda(b.id, [{ slug: 'choriperro-clasico', cantidad: 2 }], {}, admin)
+
+    const r = await admin.post(`/api/cuentas/${a.id}/juntar`, { mesaId: await mesaN(4) })
+    expect(r.statusCode).toBe(200)
+    const junta = r.json<{ cuenta: CuentaMesaDTO }>().cuenta
+    expect(junta.rondas.map((x) => x.mesa.ronda)).toEqual([1, 2, 3])
+    expect(junta.rondas.map((x) => x.id)).toEqual(expect.arrayContaining([b1!.id, b2!.id]))
+    expect(junta.comensales).toBe(4)
+    expect(junta.mesasUnidas.map((m) => m.numero)).toEqual([4])
+    const vieja = (await admin.get(`/api/cuentas/${b.id}`)).json<{ cuenta: CuentaMesaDTO }>().cuenta
+    expect(vieja).toMatchObject({ estado: 'unida', unidaA: a.id, rondas: [] })
+    expect((await ronda(b.id, [{ slug: 'la-callejera', cantidad: 1 }], {}, admin)).r.statusCode).toBe(409)
+
+    for (const x of junta.rondas) await servirN(x.id)
+    const total = junta.subtotal
+    const cobro = await cajaN.post(`/api/cuentas/${a.id}/cobrar`, { pagos: [{ metodo: 'qr', monto: total }], propina: 0 })
+    expect(cobro.statusCode).toBe(200)
+    const salon = await salonN()
+    for (const n of [3, 4]) expect(salon.mesas.find((m) => m.numero === n)).toMatchObject({ estado: 'libre', cuenta: null, unidaA: null })
+    const auditoria = await e.c.uow.repos.auditoria.listar({ limite: 50 })
+    expect(auditoria.find((x) => x.accion === 'cuenta.juntar' && x.entidadId === a.id && (x.datos as { rondasMovidas?: number })?.rondasMovidas === 2)).toBeTruthy()
+  })
+})
+
 describe('mesas: tiempo real', () => {
   function conectar(ticket: string): Promise<Socket> {
     return new Promise((resolver, rechazar) => {

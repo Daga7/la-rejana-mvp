@@ -63,7 +63,7 @@ export function ModuloCaja() {
   const todos = data?.pedidos ?? []
   const pedidos = todos.filter(esDomicilio)
   const mesasAbiertas = (datosSalon?.salon.mesas ?? [])
-    .filter((m) => m.cuenta)
+    .filter((m) => m.cuenta && m.unidaA === null)
     .sort((a, b) => Number(!!b.cuenta!.cuentaPedidaEn) - Number(!!a.cuenta!.cuentaPedidaEn) || a.cuenta!.abiertaEn.localeCompare(b.cuenta!.abiertaEn))
   const porCobrarMesas = mesasAbiertas.filter((m) => m.cuenta!.cuentaPedidaEn).length
   const actual = PESTANAS.find((t) => t.id === pestana)
@@ -126,6 +126,7 @@ export function ModuloCaja() {
                   <span className="min-w-0 flex-1">
                     <b className="block">
                       Mesa {m.numero}
+                      {m.cuenta!.mesasUnidas.length ? ` + ${m.cuenta!.mesasUnidas.join(', ')}` : ''}
                       {m.zona ? ` · ${m.zona}` : ''}
                     </b>
                     <span className="block text-xs text-tinta-soft">

@@ -19,7 +19,10 @@ RUN pnpm --filter @rejana/api build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --filter @rejana/api deploy --prod --legacy /salida
 
 FROM node:24-bookworm-slim AS run
-ENV NODE_ENV=production MIGRACIONES_DIR=/app/drizzle PORT=4000 HOST=0.0.0.0
+# Heap acotado: sin límite, V8 crece según la RAM del servidor (medido: 209 MB en reposo y 740 MB tras una
+# ráfaga de carga) y en Railway se paga la memoria usada. Con esto: ~85 MB en reposo y ~140 MB con 1.000 req/s.
+# Se puede cambiar con la variable NODE_OPTIONS del servicio.
+ENV NODE_ENV=production MIGRACIONES_DIR=/app/drizzle PORT=4000 HOST=0.0.0.0 NODE_OPTIONS="--max-old-space-size=256 --max-semi-space-size=8"
 WORKDIR /app
 COPY --from=build --chown=node:node /salida/node_modules ./node_modules
 COPY --from=build --chown=node:node /salida/package.json ./package.json

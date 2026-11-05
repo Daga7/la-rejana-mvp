@@ -9,9 +9,11 @@ FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
 RUN pnpm install --frozen-lockfile --filter @rejana/web...
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/server packages/server
 COPY apps/web apps/web
 # Versión del service worker (en Vercel se toma sola de VERCEL_GIT_COMMIT_SHA).
 ARG VERSION_APP

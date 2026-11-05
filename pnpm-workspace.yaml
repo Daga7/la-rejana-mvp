@@ -4,7 +4,9 @@ packages:
 
 # pnpm 11 no ejecuta scripts de instalación de dependencias salvo que se autoricen aquí.
 allowBuilds:
+  '@google/genai': true
   esbuild: true
+  protobufjs: true
   sharp: false
   unrs-resolver: false
 

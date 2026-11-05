@@ -5,15 +5,11 @@ export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID())
   const dev = process.env.NODE_ENV === 'development'
 
-  const tiempoReal = process.env.API_PUBLIC_URL ?? ''
+  // El tiempo real (SSE) y la API viven en el mismo origen: no hace falta abrir connect-src para ellos.
   const conexiones = ["'self'"]
   const teselas = process.env.MAPA_TESELAS_URL
-  if (tiempoReal) {
-    const u = new URL(tiempoReal)
-    conexiones.push(u.origin, `${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}`)
-  }
   if (teselas) conexiones.push(new URL(teselas.replace(/\{[a-z]\}/g, '0')).origin)
-  if (dev) conexiones.push('ws://localhost:*', 'http://localhost:*')
+  if (dev) conexiones.push('http://localhost:*')
 
   const csp = [
     "default-src 'self'",

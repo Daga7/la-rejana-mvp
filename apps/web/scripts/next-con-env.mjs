@@ -3,6 +3,7 @@
 // que ya vengan del entorno (Railway, Vercel, CI).
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { parseEnv } from 'node:util'
 
 const archivo = new URL('../../../.env', import.meta.url)
@@ -14,4 +15,5 @@ if (existsSync(archivo)) {
 const require = createRequire(import.meta.url)
 const bin = require.resolve('next/dist/bin/next')
 process.argv = [process.argv[0], bin, ...process.argv.slice(2)]
-await import(bin)
+// En Windows, import() exige una URL file:// (una ruta nativa "C:\..." no es un esquema soportado).
+await import(pathToFileURL(bin))

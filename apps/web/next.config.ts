@@ -23,7 +23,9 @@ const nextConfig: NextConfig = {
   env: { VERSION_APP },
   output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   outputFileTracingRoot: raiz,
-  transpilePackages: ['@rejana/shared'],
+  transpilePackages: ['@rejana/shared', '@rejana/server'],
+  // El backend (pg, bcryptjs, pdfkit…) corre dentro de los route handlers: nunca en el runtime Edge ni en el cliente.
+  serverExternalPackages: ['pg', 'bcryptjs', 'pdfkit', 'web-push', 'nodemailer'],
   // Importa solo los módulos usados de Motion (sin esto, el barril trae las animaciones de layout a la primera carga).
   experimental: { optimizePackageImports: ['motion', 'framer-motion'] },
   poweredByHeader: false,

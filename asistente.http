@@ -1,0 +1,41 @@
+### La Rejana — probar el asistente de reportes (mismo flujo que WhatsApp, sin WhatsApp)
+### Requiere la extensión "REST Client" en VS Code (humao.rest-client).
+### Server corriendo en local: pnpm dev (http://localhost:3000)
+
+@host = http://localhost:3000
+@correo = admin@larejana.test
+@clave = Rejana2026*
+
+### 1) Token CSRF (deja cookie rj_csrf; REST Client guarda cookies entre peticiones de este archivo)
+# @name csrf
+GET {{host}}/api/auth/csrf
+
+### 2) Login como admin (deja cookies de sesión: acceso + refresco)
+# @name login
+POST {{host}}/api/auth/ingresar
+Content-Type: application/json
+X-CSRF-Token: {{csrf.response.body.token}}
+
+{
+  "correo": "{{correo}}",
+  "clave": "{{clave}}"
+}
+
+### 3) Lanzar la solicitud al asistente (texto libre → IA → PDF o aclaración)
+# @name probar
+POST {{host}}/api/admin/asistente/probar
+Content-Type: application/json
+X-CSRF-Token: {{csrf.response.body.token}}
+
+{
+  "texto": "ventas de este mes"
+}
+
+### Otros ejemplos de texto para probar (cambia el campo "texto" arriba y reenvía):
+# "productos más vendidos de la semana pasada"
+# "inventario de pan en la sede Villaluz"
+# "cuánto vendimos ayer"
+
+### 4) Ver qué número(s) están autorizados para WhatsApp y qué proveedor de IA está activo
+# @name estado
+GET {{host}}/api/admin/asistente/estado

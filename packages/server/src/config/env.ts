@@ -87,7 +87,7 @@ const esquema = z
     ANTHROPIC_API_KEY: opcional,
     ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
     GEMINI_API_KEY: opcional,
-    GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+    GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
     STT_PROVEEDOR: z.enum(['mock', 'openai']).default('mock'),
     STT_API_KEY: opcional,
     STT_BASE_URL: z.string().default('https://api.openai.com/v1'),

@@ -56,7 +56,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Leer las cabeceras obliga al renderizado dinámico: necesario para el nonce de la CSP.
   await headers()
   const config = {
-    tiempoRealUrl: process.env.API_PUBLIC_URL ?? '',
     teselasUrl: process.env.MAPA_TESELAS_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     atribucionMapa: process.env.MAPA_ATRIBUCION ?? '© OpenStreetMap',
   }
